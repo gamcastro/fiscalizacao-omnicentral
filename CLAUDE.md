@@ -19,6 +19,8 @@ A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudan
 
 - SemVer (`MAIOR.MENOR.CORREÇÃO`). Em construção fica em `0.x`: cada fase concluída sobe a MENOR (Fase 2 = `0.2.0`), cada correção sobe a CORREÇÃO. `1.0.0` = sistema completo em produção.
 - A cada entrega: atualizar `VERSAO_APP` em `src/Code.js` e o `CHANGELOG.md`, fazer commit, criar a tag `vX.Y.Z` e implantar com `clasp deploy -i <id da implantação> -d "vX.Y.Z – ..."`, reaproveitando o mesmo id para a URL `/exec` não mudar.
+- Implantação de produção: `AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ` (v0.1.0 = versão @1 do Apps Script).
+  URL: https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ/exec
 
 ## Regras de negócio que nunca podem ser quebradas
 
