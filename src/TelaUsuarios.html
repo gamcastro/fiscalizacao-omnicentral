@@ -1,0 +1,173 @@
+<section id="tela-usuarios" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <h1>Usuários</h1>
+    <button type="button" id="usu-novo" class="botao primario">Novo usuário</button>
+  </div>
+
+  <form id="usu-form" class="cartao" hidden autocomplete="off" novalidate>
+    <h2 id="usu-form-titulo">Novo usuário</h2>
+    <div class="grade-form">
+      <label>E-mail
+        <input type="email" id="usu-email" placeholder="nome@tre-ma.jus.br">
+      </label>
+      <label>Nome
+        <input type="text" id="usu-nome">
+      </label>
+      <label>Perfil
+        <select id="usu-perfil"></select>
+      </label>
+      <label>Condição
+        <select id="usu-condicao"></select>
+      </label>
+      <label class="check">
+        <input type="checkbox" id="usu-ativo" checked> Ativo
+      </label>
+    </div>
+    <div class="acoes">
+      <button type="submit" id="usu-salvar" class="botao primario">Salvar</button>
+      <button type="button" id="usu-cancelar" class="botao">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="cartao">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>E-mail</th>
+          <th>Perfil</th>
+          <th>Condição</th>
+          <th>Situação</th>
+          <th>Atualizado em</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="usu-lista"></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const estado = { usuarios: [], perfis: [], condicoes: [], editando: null };
+    const el = function (id) { return document.getElementById(id); };
+
+    function carregar() {
+      el('usu-lista').innerHTML = '<tr><td colspan="7" class="vazio">Carregando…</td></tr>';
+      return chamar('listarUsuarios')
+        .then(function (r) {
+          estado.usuarios = r.usuarios;
+          estado.perfis = r.perfis;
+          estado.condicoes = r.condicoes;
+          preencherOpcoes();
+          renderizar();
+        })
+        .catch(function (erro) {
+          el('usu-lista').innerHTML = '<tr><td colspan="7" class="vazio">Não foi possível carregar.</td></tr>';
+          mostrarMensagem(erro.message, 'erro');
+        });
+    }
+
+    function preencherOpcoes() {
+      el('usu-perfil').innerHTML = '<option value="">Selecione…</option>' + estado.perfis.map(function (p) {
+        return '<option value="' + esc(p.codigo) + '">' + esc(p.rotulo) + '</option>';
+      }).join('');
+      el('usu-condicao').innerHTML = '<option value="">Selecione…</option>' + estado.condicoes.map(function (c) {
+        return '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+      }).join('');
+    }
+
+    function renderizar() {
+      if (!estado.usuarios.length) {
+        el('usu-lista').innerHTML = '<tr><td colspan="7" class="vazio">Nenhum usuário cadastrado.</td></tr>';
+        return;
+      }
+      el('usu-lista').innerHTML = estado.usuarios.map(function (u) {
+        return '<tr class="' + (u.ativo ? '' : 'inativo') + '">' +
+          '<td>' + esc(u.nome) + '</td>' +
+          '<td>' + esc(u.email) + '</td>' +
+          '<td>' + esc(u.perfilRotulo) + '</td>' +
+          '<td>' + esc(u.condicao) + '</td>' +
+          '<td><span class="etiqueta ' + (u.ativo ? 'ok' : 'off') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
+          '<td>' + esc(formatarDataHora(u.atualizadoEm)) + '</td>' +
+          '<td class="acoes-linha">' +
+            '<button type="button" class="botao pequeno" data-acao="editar" data-email="' + esc(u.email) + '">Editar</button> ' +
+            '<button type="button" class="botao pequeno" data-acao="ativo" data-email="' + esc(u.email) + '">' +
+              (u.ativo ? 'Desativar' : 'Ativar') + '</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function abrirFormulario(usuario) {
+      estado.editando = usuario || null;
+      el('usu-form-titulo').textContent = usuario ? 'Editar usuário' : 'Novo usuário';
+      el('usu-email').value = usuario ? usuario.email : '';
+      el('usu-email').readOnly = !!usuario;
+      el('usu-nome').value = usuario ? usuario.nome : '';
+      el('usu-perfil').value = usuario ? usuario.perfil : '';
+      el('usu-condicao').value = usuario ? usuario.condicao : '';
+      el('usu-ativo').checked = usuario ? usuario.ativo : true;
+      el('usu-form').hidden = false;
+      (usuario ? el('usu-nome') : el('usu-email')).focus();
+    }
+
+    function fecharFormulario() {
+      estado.editando = null;
+      el('usu-form').hidden = true;
+    }
+
+    function ocupado(sim) {
+      document.querySelectorAll('#tela-usuarios button').forEach(function (b) { b.disabled = sim; });
+    }
+
+    el('usu-novo').addEventListener('click', function () { limparMensagem(); abrirFormulario(null); });
+    el('usu-cancelar').addEventListener('click', fecharFormulario);
+
+    el('usu-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const dados = {
+        novo: !estado.editando,
+        email: el('usu-email').value,
+        nome: el('usu-nome').value,
+        perfil: el('usu-perfil').value,
+        condicao: el('usu-condicao').value,
+        ativo: el('usu-ativo').checked
+      };
+      ocupado(true);
+      chamar('salvarUsuario', dados)
+        .then(function (r) {
+          fecharFormulario();
+          mostrarMensagem(r.mensagem, 'sucesso');
+          return carregar();
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    });
+
+    el('usu-lista').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('button[data-acao]');
+      if (!botao) return;
+      const usuario = estado.usuarios.find(function (u) { return u.email === botao.dataset.email; });
+      if (!usuario) return;
+      limparMensagem();
+      if (botao.dataset.acao === 'editar') {
+        abrirFormulario(usuario);
+        return;
+      }
+      const ativar = !usuario.ativo;
+      if (!confirm((ativar ? 'Ativar' : 'Desativar') + ' o usuário ' + usuario.nome + '?')) return;
+      ocupado(true);
+      chamar('alterarAtivoUsuario', usuario.email, ativar)
+        .then(function (r) {
+          mostrarMensagem(r.mensagem, 'sucesso');
+          return carregar();
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    });
+
+    window.TELAS.usuarios = { abrir: function () { fecharFormulario(); carregar(); } };
+  })();
+</script>

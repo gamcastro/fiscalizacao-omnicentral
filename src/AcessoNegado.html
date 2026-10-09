@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Estilos'); ?>
+</head>
+<body class="pagina-aviso">
+  <div class="cartao aviso">
+    <? if (erro) { ?>
+      <h1>Não foi possível abrir o sistema</h1>
+      <p><?= erro ?></p>
+      <p>Avise o superadmin do sistema.</p>
+    <? } else { ?>
+      <h1>Acesso não autorizado</h1>
+      <p>A conta abaixo não está cadastrada ou está inativa neste sistema:</p>
+      <p class="email-destaque"><?= email ?></p>
+      <p>Para pedir acesso, envie este e-mail ao superadmin, George André Melo Castro
+        (george.castro@tre-ma.jus.br).</p>
+    <? } ?>
+    <p class="rodape-aviso">Fiscalização Técnica – Contrato TRE-MA nº 20/2025 (Omnicentral)</p>
+  </div>
+</body>
+</html>

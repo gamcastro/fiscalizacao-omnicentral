@@ -1,0 +1,91 @@
+<script>
+  window.TELAS = window.TELAS || {};
+  const App = { contexto: null, telaAtual: null };
+
+  /** Chama uma função do servidor e devolve uma Promise. */
+  function chamar(nomeFuncao) {
+    const args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (erro) {
+          const texto = erro && erro.message ? erro.message : String(erro);
+          reject(new Error(texto.replace(/^(Exception|Error):\s*/, '')));
+        })[nomeFuncao].apply(null, args);
+    });
+  }
+
+  function esc(valor) {
+    return String(valor === undefined || valor === null ? '' : valor)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  let temporizadorMensagem = null;
+
+  function mostrarMensagem(texto, tipo) {
+    const caixa = document.getElementById('mensagem');
+    caixa.textContent = texto;
+    caixa.className = 'mensagem ' + (tipo || 'info');
+    caixa.hidden = false;
+    clearTimeout(temporizadorMensagem);
+    if (tipo === 'sucesso') {
+      temporizadorMensagem = setTimeout(limparMensagem, 5000);
+    }
+  }
+
+  function limparMensagem() {
+    document.getElementById('mensagem').hidden = true;
+  }
+
+  /** Formata uma data ISO como dd/mm/aaaa hh:mm no fuso de Brasília. */
+  function formatarDataHora(iso) {
+    if (!iso) return '';
+    const partes = {};
+    new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date(iso)).forEach(function (p) { partes[p.type] = p.value; });
+    return partes.day + '/' + partes.month + '/' + partes.year + ' ' + partes.hour + ':' + partes.minute;
+  }
+
+  function irPara(id) {
+    limparMensagem();
+    document.querySelectorAll('.tela').forEach(function (t) { t.hidden = true; });
+    const tela = document.getElementById('tela-' + id);
+    if (tela) tela.hidden = false;
+    document.querySelectorAll('#menu a').forEach(function (a) {
+      a.classList.toggle('ativo', a.dataset.tela === id);
+    });
+    App.telaAtual = id;
+    if (window.TELAS[id] && window.TELAS[id].abrir) window.TELAS[id].abrir();
+  }
+
+  function iniciarApp() {
+    chamar('getContextoInicial')
+      .then(function (ctx) {
+        App.contexto = ctx;
+        document.getElementById('usuario-logado').innerHTML =
+          '<strong>' + esc(ctx.nome) + '</strong>' +
+          '<span>' + esc(ctx.perfilRotulo) + ' · ' + esc(ctx.condicao) + '</span>' +
+          '<span class="email">' + esc(ctx.email) + '</span>' +
+          '<span class="versao">Versão ' + esc(ctx.versao) + '</span>';
+        const menu = document.getElementById('menu');
+        menu.innerHTML = ctx.menu.map(function (m) {
+          return '<a href="#" data-tela="' + esc(m.id) + '">' + esc(m.rotulo) + '</a>';
+        }).join('');
+        menu.addEventListener('click', function (ev) {
+          const link = ev.target.closest('a[data-tela]');
+          if (!link) return;
+          ev.preventDefault();
+          irPara(link.dataset.tela);
+        });
+        irPara(ctx.menu[0].id);
+      })
+      .catch(function (erro) {
+        document.getElementById('tela-carregando').innerHTML =
+          '<p class="vazio">Não foi possível carregar o sistema.</p>';
+        mostrarMensagem(erro.message, 'erro');
+      });
+  }
+</script>

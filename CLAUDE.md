@@ -11,9 +11,14 @@ A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudan
 - Desenvolvimento local com clasp. O código fica em `src/` (`rootDir` do `.clasp.json`).
 - Comandos:
   - `clasp push`: envia o código (use depois de cada alteração testável).
-  - `clasp open`: abre o editor do Apps Script.
+  - `clasp open-script`: abre o editor do Apps Script (clasp 3.x; o antigo `clasp open` não existe mais).
   - Teste pela implantação de teste (@HEAD).
   - `clasp deploy`: **somente quando o George pedir**.
+
+## Versionamento
+
+- SemVer (`MAIOR.MENOR.CORREÇÃO`). Em construção fica em `0.x`: cada fase concluída sobe a MENOR (Fase 2 = `0.2.0`), cada correção sobe a CORREÇÃO. `1.0.0` = sistema completo em produção.
+- A cada entrega: atualizar `VERSAO_APP` em `src/Code.js` e o `CHANGELOG.md`, fazer commit, criar a tag `vX.Y.Z` e implantar com `clasp deploy -i <id da implantação> -d "vX.Y.Z – ..."`, reaproveitando o mesmo id para a URL `/exec` não mudar.
 
 ## Regras de negócio que nunca podem ser quebradas
 

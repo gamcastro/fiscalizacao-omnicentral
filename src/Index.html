@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <?!= include('Estilos'); ?>
+</head>
+<body>
+  <div class="app">
+    <aside class="lateral">
+      <div class="marca">
+        <strong>Fiscalização Técnica</strong>
+        <span>Contrato 20/2025 · Omnicentral</span>
+      </div>
+      <nav id="menu" class="menu"></nav>
+      <div id="usuario-logado" class="usuario-logado">Carregando…</div>
+    </aside>
+
+    <main class="conteudo">
+      <div id="mensagem" class="mensagem" hidden></div>
+
+      <section id="tela-carregando" class="tela">
+        <p class="vazio">Carregando…</p>
+      </section>
+
+      <section id="tela-painel" class="tela" hidden>
+        <h1>Painel</h1>
+        <div class="cartao">
+          <p class="vazio">O painel de saldos, alertas e competências será construído na Fase 3.</p>
+        </div>
+      </section>
+
+      <?!= include('TelaUsuarios'); ?>
+    </main>
+  </div>
+
+  <?!= include('JsComum'); ?>
+  <script>
+    iniciarApp();
+  </script>
+</body>
+</html>
