@@ -194,7 +194,6 @@ Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado.
 
 ### 6.1 Atesto
 ```
-ATESTO
 Atesto, para os devidos fins, que a empresa {EMPRESA_MAIUSCULA}, inscrita no CNPJ sob o nº {CNPJ}, executou de forma satisfatória, no período de {DATA_INICIO} a {DATA_FIM}, os serviços contratados relativos ao {OBJETO_ATESTO}.
 Segue discriminação:
 [tabela: Item | Descrição | Unidade de Medida | Quantidade — itens 1 a 5 + eventuais com quantidade > 0]
@@ -202,6 +201,7 @@ Os serviços foram executados em conformidade com as especificações técnicas,
 {FISCAL_TECNICO_ASSINATURA}
 Fiscal Técnico Contrato 20/2025
 ```
+- O texto não leva o título "ATESTO": o tipo de documento Atesto do SEI já traz o título (decisão de 10/10/2026).
 - Se `ansCumprido` = FALSE, a frase do ANS muda para: "Registra-se que o ANS não foi integralmente atendido no período, com {ansMinutos} minutos de indisponibilidade, conforme relatório (ID {idRelANS}), conforme ocorrência registrada."
 - Se `idRelANS` estiver vazio, mostrar `[ID do Relatório de Cumprimento do ANS]` e um aviso.
 

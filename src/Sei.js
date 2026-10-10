@@ -216,7 +216,7 @@ function linhaDoTempo_(comp) {
     let descricao = null;
     if (l.acao === 'CRIAR') {
       descricao = 'Competência criada com status "' + (STATUS_ROTULOS[depois.status] || depois.status) + '"' +
-        (depois.obs ? ' (' + depois.obs + ')' : '') + '.';
+        (depois.obs ? ' (' + String(depois.obs).replace(/\.+$/, '') + ')' : '') + '.';
     } else if (l.acao === 'STATUS') {
       descricao = (depois.justificativa ? 'Reaberta: ' : 'Status: ') + '"' + (STATUS_ROTULOS[antes.status] || antes.status) +
         '" → "' + (STATUS_ROTULOS[depois.status] || depois.status) + '"' +

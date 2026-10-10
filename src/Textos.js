@@ -67,35 +67,43 @@ function gerarTextosSei_(registro, medicoes, itens, config) {
   const rodapeAtesto = 'Fiscal Técnico Contrato ' + contrato;
 
   const cabecalhoTabela = ['Item', 'Descrição', 'Unidade de Medida', 'Quantidade'];
+  // Sem o título "ATESTO": o tipo de documento Atesto do SEI já traz o título.
   const atestoTexto = [
-    'ATESTO',
     aberturaAtesto,
     'Segue discriminação:',
     cabecalhoTabela.join('\t')
   ].concat(linhas.map(function (l) { return [l.item, l.descricao, l.unidade, l.quantidade].join('\t'); }))
-    .concat([fraseAns, assinatura, rodapeAtesto])
+    .concat(['', fraseAns, assinatura, rodapeAtesto])
     .join('\n');
 
-  const celula = 'border:1px solid #000;padding:4px 6px;';
+  // O HTML usa as classes de estilo do editor do SEI (menu "Estilo"), para o texto colado
+  // ganhar a fonte e o tamanho padrão do SEI. O alinhamento em `style` é só reserva.
+  const celula = 'border:1px solid #000;padding:2px 4px;';
+  const celulaTabela = function (texto, classe, alinhamento, cabecalho) {
+    const tag = cabecalho ? 'th' : 'td';
+    return '<' + tag + ' style="' + celula + (cabecalho ? 'background:#eee;' : '') + '">' +
+      paragrafoSei_(classe, alinhamento, cabecalho ? '<b>' + escaparHtml_(texto) + '</b>' : escaparHtml_(texto)) +
+      '</' + tag + '>';
+  };
   const atestoHtml =
-    '<p style="text-align:center"><b>ATESTO</b></p>' +
-    '<p style="text-align:justify">' + escaparHtml_(aberturaAtesto) + '</p>' +
-    '<p>Segue discriminação:</p>' +
-    '<table style="border-collapse:collapse;width:100%">' +
+    paragrafoSei_('Texto_Justificado', 'justify', escaparHtml_(aberturaAtesto)) +
+    paragrafoSei_('Texto_Justificado', 'justify', 'Segue discriminação:') +
+    '<table border="1" cellpadding="2" cellspacing="0" style="border-collapse:collapse;margin-left:auto;margin-right:auto">' +
       '<tr>' + cabecalhoTabela.map(function (h) {
-        return '<th style="' + celula + 'background:#eee">' + escaparHtml_(h) + '</th>';
+        return celulaTabela(h, 'Tabela_Texto_Centralizado', 'center', true);
       }).join('') + '</tr>' +
       linhas.map(function (l) {
         return '<tr>' +
-          '<td style="' + celula + 'text-align:center">' + escaparHtml_(l.item) + '</td>' +
-          '<td style="' + celula + '">' + escaparHtml_(l.descricao) + '</td>' +
-          '<td style="' + celula + '">' + escaparHtml_(l.unidade) + '</td>' +
-          '<td style="' + celula + 'text-align:right">' + escaparHtml_(l.quantidade) + '</td>' +
+          celulaTabela(l.item, 'Tabela_Texto_Centralizado', 'center') +
+          celulaTabela(l.descricao, 'Tabela_Texto_Alinhado_Esquerda', 'left') +
+          celulaTabela(l.unidade, 'Tabela_Texto_Alinhado_Esquerda', 'left') +
+          celulaTabela(l.quantidade, 'Tabela_Texto_Alinhado_Direita', 'right') +
         '</tr>';
       }).join('') +
     '</table>' +
-    '<p style="text-align:justify">' + escaparHtml_(fraseAns) + '</p>' +
-    '<p style="text-align:center">' + escaparHtml_(assinatura) + '<br>' + escaparHtml_(rodapeAtesto) + '</p>';
+    paragrafoSei_('Texto_Justificado', 'justify', '&nbsp;') +
+    paragrafoSei_('Texto_Justificado', 'justify', escaparHtml_(fraseAns)) +
+    paragrafoSei_('Texto_Centralizado', 'center', escaparHtml_(assinatura) + '<br>' + escaparHtml_(rodapeAtesto));
 
   const despachoParagrafos = [
     'À COGECON,',
@@ -114,15 +122,25 @@ function gerarTextosSei_(registro, medicoes, itens, config) {
     .concat([assinatura, rodapeDespacho])
     .join('\n');
   const despachoHtml =
-    despachoParagrafos.map(function (p) { return '<p style="text-align:justify">' + escaparHtml_(p) + '</p>'; }).join('') +
-    '<ul>' + despachoMarcadores.map(function (m) { return '<li>' + escaparHtml_(m) + '</li>'; }).join('') + '</ul>' +
-    '<p style="text-align:center">' + escaparHtml_(assinatura) + '<br>' + escaparHtml_(rodapeDespacho) + '</p>';
+    paragrafoSei_('Texto_Alinhado_Esquerda', 'left', escaparHtml_(despachoParagrafos[0])) +
+    despachoParagrafos.slice(1).map(function (p) {
+      return paragrafoSei_('Texto_Justificado_Recuo_Primeira_Linha', 'justify', escaparHtml_(p));
+    }).join('') +
+    '<ul>' + despachoMarcadores.map(function (m) {
+      return '<li>' + paragrafoSei_('Texto_Justificado', 'justify', escaparHtml_(m)) + '</li>';
+    }).join('') + '</ul>' +
+    paragrafoSei_('Texto_Centralizado', 'center', escaparHtml_(assinatura) + '<br>' + escaparHtml_(rodapeDespacho));
 
   return {
     atesto: { texto: atestoTexto, html: atestoHtml },
     despacho: { texto: despachoTexto, html: despachoHtml },
     avisos: avisos
   };
+}
+
+/** Parágrafo com a classe de estilo do SEI; `conteudo` já deve estar escapado. */
+function paragrafoSei_(classe, alinhamento, conteudo) {
+  return '<p class="' + classe + '" style="text-align:' + alinhamento + '">' + conteudo + '</p>';
 }
 
 function escaparHtml_(texto) {

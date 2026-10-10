@@ -162,17 +162,21 @@
         .then(function () { ocupado(false); });
     }
 
-    /** Copia o documento já formatado (com tabela), pronto para colar no editor do SEI. */
+    /**
+     * Copia o documento para colar no editor do SEI. Grava na área de transferência o HTML
+     * gerado pelo servidor (com as classes de estilo do SEI), e não o visual desta tela.
+     */
     function copiar(idDocumento, botao) {
-      const doc = el(idDocumento);
-      const selecao = window.getSelection();
-      const intervalo = document.createRange();
-      intervalo.selectNodeContents(doc);
-      selecao.removeAllRanges();
-      selecao.addRange(intervalo);
+      const texto = idDocumento === 'det-atesto' ? atual.textos.atesto : atual.textos.despacho;
+      const aoCopiar = function (ev) {
+        ev.clipboardData.setData('text/html', texto.html);
+        ev.clipboardData.setData('text/plain', texto.texto);
+        ev.preventDefault();
+      };
+      document.addEventListener('copy', aoCopiar);
       let ok = false;
       try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-      selecao.removeAllRanges();
+      document.removeEventListener('copy', aoCopiar);
       if (ok) {
         const original = botao.textContent;
         botao.textContent = 'Copiado ✓';
