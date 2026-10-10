@@ -267,6 +267,31 @@
     border: 1px solid var(--cor-borda); border-radius: 4px; padding: 8px; margin-top: 8px;
   }
 
+  /* Configurações */
+  .abas-config { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid var(--cor-borda); }
+  .abas-config button {
+    font: inherit; padding: 8px 14px; border: 0; background: none; cursor: pointer;
+    color: var(--cor-suave); border-bottom: 3px solid transparent; margin-bottom: -2px;
+  }
+  .abas-config button.ativa { color: var(--cor-primaria); border-bottom-color: var(--cor-primaria); font-weight: 600; }
+  .cfg-linha {
+    display: grid; grid-template-columns: minmax(220px, 1fr) 2fr auto; gap: 16px; align-items: start;
+    padding: 12px 0; border-bottom: 1px solid var(--cor-borda);
+  }
+  .cfg-linha:last-child { border-bottom: 0; }
+  .cfg-controle input, .cfg-controle select, .cfg-controle textarea {
+    font: inherit; width: 100%; padding: 7px 9px; border: 1px solid var(--cor-borda); border-radius: 4px; background: #fff;
+  }
+  .com-sufixo { display: flex; align-items: center; gap: 8px; }
+  .com-sufixo input { max-width: 320px; }
+  .lista-emails { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; background: #e8f0fb; color: var(--cor-primaria); border-radius: 12px; padding: 3px 4px 3px 10px; font-size: 13px; }
+  .chip-x { border: 0; background: none; cursor: pointer; font-size: 15px; line-height: 1; color: var(--cor-primaria); padding: 0 4px; }
+  .acoes-form { align-items: end; padding-top: 18px; }
+  .bloco-form { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--cor-borda); }
+  .bloco-form h3 { margin: 16px 0 8px; }
+  .botao:disabled[data-bloqueado] { cursor: not-allowed; }
+
   /* Página de acesso negado */
   .pagina-aviso { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
   .aviso { max-width: 520px; width: 100%; }

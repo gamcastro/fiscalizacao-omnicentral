@@ -54,7 +54,7 @@ Regras:
 4. **Canal Testes** do SZ.chat fica fora da medição. O Relatório de convocação não faz parte do contrato.
 5. **ANS:** no máximo 45 minutos de indisponibilidade somada no mês (99,741%). Minutos estimados = (100% − uptime%) × minutos do mês.
 6. **Alerta de saldo:** avisar quando o consumo de um item na vigência chegar a 80% da quantidade contratada.
-7. **Nada é apagado.** Registros são desativados ou corrigidos, e toda gravação vai para a aba `Log` com quem fez, quando, o valor antes e o depois.
+7. **Nada é apagado.** Registros são desativados ou corrigidos, e toda gravação vai para a aba `Log` com quem fez, quando, o valor antes e o depois. Exceção decidida pelo George em 10/10/2026: dados de configuração (feriados, vigências e quantidades contratadas) podem ser excluídos pela tela de Configurações, sempre com registro `EXCLUIR` no Log. Competências e medições nunca são excluídas na produção.
 8. **Permissões sempre conferidas no servidor.** O e-mail vem de `Session.getActiveUser().getEmail()` e o perfil da aba `Usuarios`. O front-end só esconde botões, nunca é a barreira de segurança.
 
 ## Convenções de código

@@ -136,7 +136,7 @@ Status, em ordem:
 `competencia` · `item` · `quantidade` · `quantidadeRelatorio` (valor bruto do relatório) · `ajusteObs` (ex.: "excluídas 2 msgs da campanha Teste Mudança Sessão") · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
 
 ### 3.9 `Log`
-`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
+`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG/EXCLUIR/LEMBRETE) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
 
 ### 3.10 Dados iniciais do histórico
 
@@ -187,7 +187,7 @@ Observações:
 4. **Textos do SEI (dentro do detalhe):** atesto e despacho gerados (seção 6), com botão "Copiar".
 5. **Histórico (todos):** todas as competências, com filtro por vigência e exportação CSV.
 6. **Usuários (`SUPERADMIN`):** cadastrar, editar e ativar/desativar usuários, com perfil e condição.
-7. **Configurações (`SUPERADMIN`):** editar a aba `Config`, ver vigências, quantidades e preços de referência (somente leitura na v1).
+7. **Configurações (`SUPERADMIN`):** editar a aba `Config`; cadastrar, editar e excluir feriados e vigências com as quantidades contratadas; ligar/desligar o lembrete por e-mail; consultar os preços de referência (somente leitura). Implementado na v0.7.0.
 
 Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado.
 
