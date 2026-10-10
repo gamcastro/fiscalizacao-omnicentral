@@ -3,6 +3,17 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.6.0] – 10/10/2026 – Fase 5B: Lembrete por e-mail
+
+### Incluído
+- Gatilho diário (8h) `verificarLembretesDiarios()`: em dia útil, envia e-mail no 1º dia útil do mês (início da competência anterior, com checklist) e depois do prazo de 10 dias úteis sem os 4 documentos SEI. Inclui as pendências do painel e o link do app. Cada aviso é enviado uma vez (registro `LEMBRETE` no `Log`).
+- Nova chave `EMAILS_LEMBRETE` na aba `Config` (incluída pelo `setup()`), com os destinatários separados por ";".
+- `instalarLembreteDiario()` / `removerLembreteDiario()` (superadmin; instalação só na produção) e `testarLembrete()` (envia só para quem executa, sem gravar no Log).
+- Na homologação, qualquer e-mail vai só para quem executa, com "[HOMOLOGAÇÃO]" no assunto.
+
+### Alterado
+- Novas permissões: enviar e-mail e gerenciar gatilhos (é preciso autorizar de novo em cada ambiente).
+
 ## [0.5.0] – 10/10/2026 – Fase 5A: Histórico e CSV
 
 ### Incluído

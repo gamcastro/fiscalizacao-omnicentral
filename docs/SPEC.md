@@ -67,6 +67,7 @@ Linha 1 de cada aba é o cabeçalho. O código lê as colunas pelo nome do cabe�
 | ANS_PERCENTUAL | 99,741 | Referência do TR |
 | ALERTA_SALDO | 0,8 | 80% |
 | SEI_PAGAMENTO | 0006617-02.2025.6.27.8000 | |
+| EMAILS_LEMBRETE | george.castro@tre-ma.jus.br | Destinatários do lembrete do 1º dia útil e do aviso de prazo dos documentos SEI, separados por ";" (v0.6.0) |
 | UNIDADE_PAGAMENTO | ASGEC | Destinatária do despacho de pagamento. ASGEC desde a competência 09/2026; antes, COGECON (mudança informada em 10/10/2026) |
 | FISCAL_TECNICO_ASSINATURA | George André Melo Castro | Nome no rodapé do atesto e do despacho |
 

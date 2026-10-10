@@ -32,6 +32,8 @@ Regras:
 - O app se identifica pelo `ScriptApp.getScriptId()`: fora do script de produção mostra a faixa "AMBIENTE DE HOMOLOGAÇÃO" (`ID_SCRIPT_PRODUCAO` em `src/Code.js`).
 - Dados fictícios só na planilha de homologação. Na produção, só dados reais.
 - Funções de carga (`setup`, `carregar...`) rodam primeiro na homologação; na produção só depois de validadas.
+- Quando o `appsscript.json` ganhar escopo novo, o app (executado como quem implantou) para de funcionar até o George autorizar de novo, rodando qualquer função pelo editor daquele ambiente. Na produção, isso precisa acontecer logo após a implantação.
+- Lembrete por e-mail (v0.6.0): o gatilho diário só existe na produção (`instalarLembreteDiario()`). Na homologação, use `testarLembrete()`; ali todo e-mail vai só para quem executa.
 
 ## Versionamento
 
