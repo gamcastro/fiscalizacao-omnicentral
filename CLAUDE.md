@@ -37,7 +37,7 @@ Regras:
 
 - SemVer (`MAIOR.MENOR.CORREÇÃO`). Em construção fica em `0.x`: cada fase concluída sobe a MENOR (Fase 2 = `0.2.0`), cada correção sobe a CORREÇÃO. `1.0.0` = sistema completo em produção.
 - A cada entrega: atualizar `VERSAO_APP` em `src/Code.js` e o `CHANGELOG.md`, fazer commit, criar a tag `vX.Y.Z` (na `main`) e implantar reaproveitando o mesmo id para a URL `/exec` não mudar.
-- Implantação de produção: `AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ` (@1 = v0.1.0, @2 = v0.2.0, @3 = v0.3.0, @4 = v0.4.0).
+- Implantação de produção: `AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ` (@1 = v0.1.0, @2 = v0.2.0, @3 = v0.3.0, @4 = v0.4.0, @5 = v0.4.1).
 
 ## Regras de negócio que nunca podem ser quebradas
 
