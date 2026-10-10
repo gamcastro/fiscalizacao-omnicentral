@@ -1,6 +1,7 @@
 /**
  * Sei.js – detalhe da competência, IDs do SEI, transições de status,
- * reabertura (superadmin) e ciente do gestor.
+ * reabertura (superadmin). O ciente do gestor foi retirado na v0.4.1 (as colunas
+ * cienteGestorPor/cienteGestorEm continuam na aba Competencias, sem uso).
  */
 
 /* ---------- Funções chamadas pelo front-end ---------- */
@@ -73,41 +74,16 @@ function reabrirCompetencia(competencia, justificativa) {
     if (registro.status !== STATUS.ENVIADA_COGECON) {
       throw new Error('Só uma competência enviada para pagamento pode ser reaberta.');
     }
-    const antes = selecionar_(registro, ['status', 'cienteGestorPor', 'cienteGestorEm']);
-    const alteracoes = {
-      status: STATUS.INSTRUINDO_SEI, cienteGestorPor: '', cienteGestorEm: '',
-      atualizadoEm: new Date(), atualizadoPor: autor.email
-    };
+    const alteracoes = { status: STATUS.INSTRUINDO_SEI, atualizadoEm: new Date(), atualizadoPor: autor.email };
     atualizar_(ABAS.COMPETENCIAS, registro._linha, alteracoes);
-    gravarLog_('STATUS', ABAS.COMPETENCIAS, comp, antes,
-      { status: STATUS.INSTRUINDO_SEI, cienteGestorPor: '', cienteGestorEm: '', justificativa: motivo });
+    gravarLog_('STATUS', ABAS.COMPETENCIAS, comp, { status: registro.status },
+      { status: STATUS.INSTRUINDO_SEI, justificativa: motivo });
     Object.assign(registro, alteracoes);
     return resultadoSei_(registro, autor, 'Competência ' + rotuloCompetencia_(comp) + ' reaberta para "' +
       STATUS_ROTULOS[STATUS.INSTRUINDO_SEI] + '".');
   });
 }
 
-/** Gestor: registra ciência de uma competência enviada para pagamento. */
-function registrarCiente(competencia) {
-  const autor = requirePerfil_([PERFIS.GESTOR]);
-  if (autor.perfil !== PERFIS.GESTOR) throw new Error('Só o perfil Gestor pode registrar ciente.');
-  return comLock_(function () {
-    const registro = buscarCompetenciaObrigatoria_(competencia);
-    const comp = textoCompetencia_(registro.competencia);
-    if (registro.status !== STATUS.ENVIADA_COGECON) {
-      throw new Error('O ciente só pode ser registrado em competência enviada para pagamento.');
-    }
-    if (registro.cienteGestorEm instanceof Date) {
-      throw new Error('O ciente desta competência já foi registrado por ' + registro.cienteGestorPor + '.');
-    }
-    const alteracoes = { cienteGestorPor: String(autor.nome), cienteGestorEm: new Date() };
-    atualizar_(ABAS.COMPETENCIAS, registro._linha,
-      Object.assign({}, alteracoes, { atualizadoEm: new Date(), atualizadoPor: autor.email }));
-    gravarLog_('EDITAR', ABAS.COMPETENCIAS, comp, selecionar_(registro, ['cienteGestorPor', 'cienteGestorEm']), alteracoes);
-    Object.assign(registro, alteracoes);
-    return resultadoSei_(registro, autor, 'Ciente registrado na competência ' + rotuloCompetencia_(comp) + '.');
-  });
-}
 
 /* ---------- Regras internas ---------- */
 
@@ -179,15 +155,14 @@ function detalheCompetencia_(registro, usuario) {
   const status = String(registro.status);
   const ehSuperadmin = usuario.perfil === PERFIS.SUPERADMIN;
   const ehFiscal = ehSuperadmin || usuario.perfil === PERFIS.FISCAL_TECNICO;
-  const temCiente = registro.cienteGestorEm instanceof Date;
 
   c.itens = itens;
   c.ids = CAMPOS_IDS_SEI.map(function (f) {
     return { campo: f.campo, rotulo: f.rotulo, valor: String(registro[f.campo] || '') };
   });
   c.dataEnvioCogecon = dataIso_(registro.dataEnvioCogecon);
-  c.cienteGestorPor = String(registro.cienteGestorPor || '');
-  c.cienteGestorEm = temCiente ? isoLocal_(registro.cienteGestorEm) : '';
+  delete c.cienteGestorPor;
+  delete c.cienteGestorEm;
   c.linhaDoTempo = linhaDoTempo_(comp);
   c.textos = gerarTextosSei_(registro, c.medicoes, itens, lerConfig_());
   c.permissoes = {
@@ -195,13 +170,15 @@ function detalheCompetencia_(registro, usuario) {
     editarSei: ehFiscal && status !== STATUS.ENVIADA_COGECON,
     iniciarInstrucao: ehFiscal && status === STATUS.EM_CONFERENCIA,
     enviarCogecon: ehFiscal && status === STATUS.INSTRUINDO_SEI,
-    reabrir: ehSuperadmin && status === STATUS.ENVIADA_COGECON,
-    ciente: usuario.perfil === PERFIS.GESTOR && status === STATUS.ENVIADA_COGECON && !temCiente
+    reabrir: ehSuperadmin && status === STATUS.ENVIADA_COGECON
   };
   return c;
 }
 
-/** Eventos de status e ciente da competência, a partir do Log, do mais antigo ao mais novo. */
+/**
+ * Eventos de criação e de status da competência, a partir do Log, do mais antigo ao mais novo.
+ * A criação feita pela carga do histórico (carregarHistorico) não aparece.
+ */
 function linhaDoTempo_(comp) {
   const nomes = {};
   listar_(ABAS.USUARIOS).forEach(function (u) { nomes[normalizarEmail_(u.email)] = String(u.nome); });
@@ -214,15 +191,12 @@ function linhaDoTempo_(comp) {
     const antes = lerJson(l.antes);
     const depois = lerJson(l.depois);
     let descricao = null;
-    if (l.acao === 'CRIAR') {
-      descricao = 'Competência criada com status "' + (STATUS_ROTULOS[depois.status] || depois.status) + '"' +
-        (depois.obs ? ' (' + String(depois.obs).replace(/\.+$/, '') + ')' : '') + '.';
+    if (l.acao === 'CRIAR' && !/carga inicial/i.test(String(depois.obs || ''))) {
+      descricao = 'Competência criada com status "' + (STATUS_ROTULOS[depois.status] || depois.status) + '".';
     } else if (l.acao === 'STATUS') {
       descricao = (depois.justificativa ? 'Reaberta: ' : 'Status: ') + '"' + (STATUS_ROTULOS[antes.status] || antes.status) +
         '" → "' + (STATUS_ROTULOS[depois.status] || depois.status) + '"' +
         (depois.justificativa ? '. Justificativa: ' + depois.justificativa : '') + '.';
-    } else if (l.acao === 'EDITAR' && depois.cienteGestorPor) {
-      descricao = 'Ciente do gestor registrado.';
     }
     if (!descricao) return;
     const email = normalizarEmail_(l.email);

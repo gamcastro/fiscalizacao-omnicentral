@@ -26,8 +26,6 @@
     <div class="cartao">
       <h2>Linha do tempo</h2>
       <ol id="det-tempo" class="linha-tempo"></ol>
-      <p id="det-ciente" class="linha-info"></p>
-      <button type="button" id="det-btn-ciente" class="botao primario" hidden>Registrar ciente</button>
     </div>
   </div>
 
@@ -101,17 +99,12 @@
       el('det-pasta').innerHTML = '<strong>Pasta do Drive:</strong> ' + (d.pastaDrive
         ? '<a href="' + esc(d.pastaDrive) + '" target="_blank" rel="noopener">abrir pasta</a>' : 'não informada');
 
-      // Linha do tempo e ciente
+      // Linha do tempo
       el('det-tempo').innerHTML = d.linhaDoTempo.length
         ? d.linhaDoTempo.map(function (e) {
             return '<li><span class="dica">' + esc(formatarDataHora(e.quando)) + ' · ' + esc(e.quem) + '</span>' + esc(e.descricao) + '</li>';
           }).join('')
         : '<li class="dica">Sem eventos registrados.</li>';
-      el('det-ciente').innerHTML = d.status === 'ENVIADA_COGECON'
-        ? '<strong>Ciente do gestor:</strong> ' + (d.cienteGestorEm
-            ? esc(d.cienteGestorPor) + ' em ' + esc(formatarDataHora(d.cienteGestorEm)) : 'pendente')
-        : '';
-      el('det-btn-ciente').hidden = !p.ciente;
 
       // SEI
       const desabilitado = p.editarSei ? '' : ' disabled';
@@ -201,12 +194,8 @@
       executar(chamar('avancarStatus', atual.competencia, 'ENVIADA_COGECON', dadosSei()));
     });
     el('det-reabrir').addEventListener('click', function () {
-      if (!confirm('Reabrir a competência ' + rotuloComp(atual.competencia) + '? Ela volta para "Instruindo SEI" e o ciente do gestor é limpo.')) return;
+      if (!confirm('Reabrir a competência ' + rotuloComp(atual.competencia) + '? Ela volta para "Instruindo SEI".')) return;
       executar(chamar('reabrirCompetencia', atual.competencia, el('det-justificativa').value));
-    });
-    el('det-btn-ciente').addEventListener('click', function () {
-      if (!confirm('Registrar ciente na competência ' + rotuloComp(atual.competencia) + '?')) return;
-      executar(chamar('registrarCiente', atual.competencia));
     });
     el('tela-detalhe').addEventListener('click', function (ev) {
       const botao = ev.target.closest('button[data-copiar]');

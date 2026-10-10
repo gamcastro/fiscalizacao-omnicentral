@@ -44,7 +44,7 @@ O superadmin cadastra todos os usuários. Quem não estiver cadastrado e ativo v
 |---|---|---|
 | `SUPERADMIN` | George André Melo Castro – george.castro@tre-ma.jus.br | Tudo, inclusive cadastrar usuários, editar configurações e reabrir competência enviada. |
 | `FISCAL_TECNICO` | Titular: George André Melo Castro · Substituto: Lourencio Monteiro de Melo | Lançar e editar competências, registrar ANS e IDs do SEI, mudar status até "Enviado para pagamento", gerar textos. |
-| `GESTOR` | Titular: Jaime Monteiro da Silva Júnior · Substituto: Júlio César Macêdo Dutra | Ver tudo (painel, competências, histórico). Registrar "ciente" numa competência. |
+| `GESTOR` | Titular: Jaime Monteiro da Silva Júnior · Substituto: Júlio César Macêdo Dutra | Ver tudo (painel, competências, histórico). |
 | `FISCAL_DEMANDANTE` | Titular: Fagianni Viana de Miranda · Substituto: Christiano Anderson Neitzke | Ver tudo. |
 | `FISCAL_ADMINISTRATIVO` | Titular: Antoniette Conceição de Maria Freitas Coelho · Substituta: Rosinete Maria de Sousa Everton | Ver tudo. |
 
@@ -123,7 +123,7 @@ Linha inicial: george.castro@tre-ma.jus.br · George André Melo Castro · SUPER
 | V2026 | 9 | 1.095,80 | Apostila nº 1 |
 
 ### 3.7 `Competencias` (uma linha por mês)
-`competencia` (AAAA-MM) · `vigencia` · `status` · `ansUptimePct` · `ansMinutos` · `ansCumprido` (TRUE/FALSE) · `ansObs` · `idRelConsumo` · `idRelANS` · `idAtesto` · `idDespacho` · `dataEnvioCogecon` · `pastaDrive` (URL) · `cienteGestorPor` · `cienteGestorEm` · `obs` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+`competencia` (AAAA-MM) · `vigencia` · `status` · `ansUptimePct` · `ansMinutos` · `ansCumprido` (TRUE/FALSE) · `ansObs` · `idRelConsumo` · `idRelANS` · `idAtesto` · `idDespacho` · `dataEnvioCogecon` · `pastaDrive` (URL) · `cienteGestorPor` · `cienteGestorEm` (sem uso desde a v0.4.1) · `obs` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
 
 Status, em ordem:
 1. `RASCUNHO`
@@ -165,7 +165,7 @@ Observações:
    - `EM_CONFERENCIA` → `INSTRUINDO_SEI`: sem exigência extra.
    - `INSTRUINDO_SEI` → `ENVIADA_COGECON`: exige os 4 IDs do SEI e `dataEnvioCogecon`.
    - Depois de `ENVIADA_COGECON`, a competência fica bloqueada. Só o `SUPERADMIN` reabre, com justificativa no Log.
-7. **Ciente do gestor:** o perfil `GESTOR` pode marcar "ciente" numa competência `ENVIADA_COGECON`. Grava nome e data, sem outro efeito.
+7. ~~**Ciente do gestor**~~: retirado em 10/10/2026 (v0.4.1), a pedido do fiscal técnico titular. As colunas `cienteGestorPor` e `cienteGestorEm` continuam na aba, sem uso.
 
 ## 5. Telas
 
@@ -183,7 +183,6 @@ Observações:
    - Resumo das quantidades e do ANS.
    - Linha do tempo de status.
    - Campos dos 4 IDs do SEI e da data de envio.
-   - Botão "Ciente" para o gestor.
 4. **Textos do SEI (dentro do detalhe):** atesto e despacho gerados (seção 6), com botão "Copiar".
 5. **Histórico (todos):** todas as competências, com filtro por vigência e exportação CSV.
 6. **Usuários (`SUPERADMIN`):** cadastrar, editar e ativar/desativar usuários, com perfil e condição.
@@ -239,7 +238,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
 1. **Fase 1 – Base:** `appsscript.json`, `setup()`, `Auth.js` (perfis), roteamento `doGet` e tela de acesso negado. Tela de Usuários do superadmin.
 2. **Fase 2 – Lançamento:** tela de lançar/editar competência, cálculo do ANS, validações e Log. Carga do histórico de 2026-08 e 2026-09.
 3. **Fase 3 – Painel:** saldos por item, alertas e pendências, tabela de competências.
-4. **Fase 4 – SEI:** detalhe da competência, IDs, transições de status, ciente do gestor, textos do atesto e do despacho com "Copiar".
+4. **Fase 4 – SEI:** detalhe da competência, IDs, transições de status, textos do atesto e do despacho com "Copiar".
 5. **Fase 5 – Extras (opcional, decidir depois):** histórico com CSV, lembrete por e-mail no 1º dia útil, leitura automática dos PDFs da pasta do mês.
 
 Em cada fase: plano → aprovação → código → `clasp push` → roteiro de teste.

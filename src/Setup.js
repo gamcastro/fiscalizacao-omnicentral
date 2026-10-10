@@ -266,6 +266,55 @@ function corrigirHorarioSuperadmin() {
   return resumo;
 }
 
+/**
+ * SOMENTE HOMOLOGAÇÃO: apaga uma competência de teste (Competencias, Medicoes e as
+ * linhas do Log ligadas a ela), para refazer o processo do zero. Recusa rodar no
+ * script de produção, onde a regra "nada é apagado" vale sempre.
+ * O editor não passa parâmetros: use os atalhos abaixo (ex.: limparSetembro2026Homologacao).
+ */
+function limparCompetenciaHomologacao(competencia) {
+  if (!ehHomologacao_()) {
+    throw new Error('Esta função só pode ser usada no ambiente de HOMOLOGAÇÃO. Nada foi apagado.');
+  }
+  requirePerfil_([PERFIS.SUPERADMIN]);
+  const comp = validarFormatoCompetencia_(competencia);
+
+  const resumo = comLock_(function () {
+    const pertence = {
+      Competencias: function (l) { return textoCompetencia_(l.competencia) === comp; },
+      Medicoes: function (l) { return textoCompetencia_(l.competencia) === comp; },
+      // Só linhas de Competencias/Medicoes: as chaves dos feriados (ex.: 2026-09-07) não entram.
+      Log: function (l) {
+        const chave = String(l.chave);
+        return (l.entidade === ABAS.COMPETENCIAS || l.entidade === ABAS.MEDICOES) &&
+          (chave === comp || chave.indexOf(comp + '/') === 0);
+      }
+    };
+    const apagadas = {};
+    Object.keys(pertence).forEach(function (nome) {
+      const sh = getAba_(nome);
+      const linhas = listar_(nome).filter(pertence[nome]).map(function (l) { return l._linha; });
+      linhas.sort(function (a, b) { return b - a; }).forEach(function (n) { sh.deleteRow(n); });
+      apagadas[nome] = linhas.length;
+    });
+    gravarLog_('LIMPEZA_HOMOLOGACAO', ABAS.COMPETENCIAS, comp, { linhasApagadas: apagadas }, null);
+    return [
+      'Competência ' + comp + ' apagada da HOMOLOGAÇÃO.',
+      'Competencias: ' + apagadas.Competencias + ' linha(s), Medicoes: ' + apagadas.Medicoes +
+        ' linha(s), Log: ' + apagadas.Log + ' linha(s).',
+      'Log: 1 registro da limpeza gravado.'
+    ];
+  });
+
+  console.log(resumo.join('\n'));
+  return resumo;
+}
+
+/** Atalho para o editor: limpa a competência 09/2026 da homologação. */
+function limparSetembro2026Homologacao() {
+  return limparCompetenciaHomologacao('2026-09');
+}
+
 function criarAba_(ss, nome) {
   const sh = ss.insertSheet(nome);
   const cabecalho = CABECALHOS[nome];
