@@ -3,6 +3,12 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.5.0] – 10/10/2026 – Fase 5A: Histórico e CSV
+
+### Incluído
+- Tela "Histórico" (todos os perfis): todas as competências da vigência escolhida, com status, medida dos itens 1 a 5, eventuais com consumo, ANS, documentos SEI (x/4) e data de envio; "Ver" abre o detalhe.
+- Botão "Exportar CSV": uma linha por competência com relatório, medida e ajuste de cada item, ANS, os 4 IDs do SEI, data de envio e pasta do Drive. Formato para o Excel em português (";", vírgula decimal, dd/mm/aaaa, UTF-8 com BOM). O conteúdo também aparece na tela, como alternativa se o navegador bloquear o download.
+
 ## [0.4.2] – 10/10/2026 – Melhorias de uso
 
 ### Incluído

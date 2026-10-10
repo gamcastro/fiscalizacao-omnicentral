@@ -1,0 +1,127 @@
+<section id="tela-historico" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <h1>Histórico</h1>
+    <div class="acoes">
+      <label class="filtro">Vigência
+        <select id="his-vigencia"></select>
+      </label>
+      <button type="button" id="his-csv" class="botao primario">Exportar CSV</button>
+    </div>
+  </div>
+
+  <div class="cartao">
+    <table class="tabela tabela-historico">
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Status</th>
+          <th class="numero">It. 1</th>
+          <th class="numero">It. 2</th>
+          <th class="numero">It. 3</th>
+          <th class="numero">It. 4</th>
+          <th class="numero">It. 5</th>
+          <th>Eventuais</th>
+          <th>ANS</th>
+          <th>Documentos SEI</th>
+          <th>Enviado em</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="his-lista"></tbody>
+    </table>
+  </div>
+
+  <div id="his-csv-bloco" class="cartao" hidden>
+    <div class="cabecalho-form">
+      <h2>Conteúdo do CSV</h2>
+      <button type="button" id="his-csv-fechar" class="botao pequeno">Fechar</button>
+    </div>
+    <p class="dica">Se o download não começou, selecione o texto abaixo (Ctrl+A, Ctrl+C), cole num arquivo de texto e salve com a extensão <strong>.csv</strong>.</p>
+    <textarea id="his-csv-texto" class="texto-csv" rows="10" readonly></textarea>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    let dados = null;
+
+    function rotuloComp(c) { return c.slice(5) + '/' + c.slice(0, 4); }
+    function fmtInt(n) { return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR'); }
+    function dataBr(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '—'; }
+
+    function carregar(vigencia) {
+      el('his-lista').innerHTML = '<tr><td colspan="12" class="vazio">Carregando…</td></tr>';
+      return chamar('getHistorico', vigencia || '')
+        .then(function (r) { dados = r; renderizar(); })
+        .catch(function (erro) {
+          el('his-lista').innerHTML = '<tr><td colspan="12" class="vazio">Não foi possível carregar.</td></tr>';
+          mostrarMensagem(erro.message, 'erro');
+        });
+    }
+
+    function renderizar() {
+      el('his-vigencia').innerHTML = dados.vigencias.map(function (v) {
+        return '<option value="' + esc(v.id) + '"' + (v.id === dados.vigencia ? ' selected' : '') + '>' + esc(v.rotulo) + '</option>';
+      }).join('');
+
+      const eventuais = dados.itens.filter(function (it) { return it.tipo === 'EVENTUAL'; });
+      el('his-lista').innerHTML = dados.competencias.length
+        ? dados.competencias.map(function (c) {
+            const m = function (item) { return c.medicoes[item] ? c.medicoes[item].quantidade : null; };
+            const ev = eventuais
+              .filter(function (it) { return m(it.item) > 0; })
+              .map(function (it) { return 'It. ' + it.item + ': ' + fmtInt(m(it.item)); })
+              .join(', ') || '—';
+            const ans = c.ansUptimePct === null ? '<span class="dica">—</span>'
+              : String(c.ansUptimePct).replace('.', ',') + '% · ' + c.ansMinutos + ' min ' +
+                (c.ansCumprido ? '<span class="etiqueta ok">OK</span>' : '<span class="etiqueta nok">Não</span>');
+            return '<tr>' +
+              '<td><strong>' + esc(rotuloComp(c.competencia)) + '</strong></td>' +
+              '<td><span class="etiqueta st-' + esc(c.status) + '">' + esc(c.statusRotulo) + '</span></td>' +
+              [1, 2, 3, 4, 5].map(function (i) { return '<td class="numero">' + fmtInt(m(i)) + '</td>'; }).join('') +
+              '<td>' + esc(ev) + '</td>' +
+              '<td>' + ans + '</td>' +
+              '<td>' + (c.idsPreenchidos === 4 ? '<span class="etiqueta ok">4/4 ✓</span>'
+                : '<span class="etiqueta off">' + c.idsPreenchidos + '/4</span>') + '</td>' +
+              '<td>' + esc(dataBr(c.dataEnvio)) + '</td>' +
+              '<td class="acoes-linha"><button type="button" class="botao pequeno" data-ver="' + esc(c.competencia) + '">Ver</button></td>' +
+            '</tr>';
+          }).join('')
+        : '<tr><td colspan="12" class="vazio">Nenhuma competência nesta vigência.</td></tr>';
+    }
+
+    /** Baixa o CSV pelo navegador; o conteúdo também fica visível como alternativa. */
+    function exportar() {
+      const botao = el('his-csv');
+      botao.disabled = true;
+      chamar('exportarHistoricoCsv', el('his-vigencia').value)
+        .then(function (r) {
+          const blob = new Blob([r.conteudo], { type: 'text/csv;charset=utf-8' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = r.nomeArquivo;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(function () { URL.revokeObjectURL(link.href); }, 10000);
+          el('his-csv-texto').value = r.conteudo.replace(/^﻿/, '');
+          el('his-csv-bloco').hidden = false;
+          mostrarMensagem('CSV gerado: ' + r.nomeArquivo + ' (' + r.linhas + ' competência(s)).', 'sucesso');
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { botao.disabled = false; });
+    }
+
+    el('his-vigencia').addEventListener('change', function () { limparMensagem(); carregar(el('his-vigencia').value); });
+    el('his-csv').addEventListener('click', exportar);
+    el('his-csv-fechar').addEventListener('click', function () { el('his-csv-bloco').hidden = true; });
+    el('his-lista').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('button[data-ver]');
+      if (botao) irPara('detalhe', { competencia: botao.dataset.ver });
+    });
+
+    window.TELAS.historico = { abrir: function () { el('his-csv-bloco').hidden = true; carregar(dados ? dados.vigencia : ''); } };
+  })();
+</script>
