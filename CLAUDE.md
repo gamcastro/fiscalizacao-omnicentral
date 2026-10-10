@@ -12,7 +12,8 @@ A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudan
 - Comandos:
   - `clasp push`: envia o código (use depois de cada alteração testável).
   - `clasp open-script`: abre o editor do Apps Script (clasp 3.x; o antigo `clasp open` não existe mais).
-  - Teste pela implantação de teste (@HEAD).
+  - Teste pela implantação de teste (@HEAD), que sempre roda o último `clasp push` e só abre para quem edita o script:
+    https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbzUz9A8WNWziWTH6zvrOUYeA5hbh3xfGWhItbEWpWLD/dev
   - `clasp deploy`: **somente quando o George pedir**.
 
 ## Versionamento

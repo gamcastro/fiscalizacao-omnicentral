@@ -83,7 +83,7 @@
 
   .vazio { color: var(--cor-suave); text-align: center; padding: 12px; }
 
-  .mensagem { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; border: 1px solid; }
+  .mensagem { padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; border: 1px solid; white-space: pre-line; }
   .mensagem.sucesso { background: var(--cor-ok-fundo); color: var(--cor-ok); border-color: #b7e1c7; }
   .mensagem.erro { background: var(--cor-erro-fundo); color: var(--cor-erro); border-color: #f5c2bd; }
   .mensagem.info { background: #e8f0fb; color: var(--cor-primaria); border-color: #c4d7f2; }
@@ -113,6 +113,7 @@
   .grade-form label.check { flex-direction: row; align-items: center; gap: 8px; padding-top: 20px; }
   .grade-form input[type="text"],
   .grade-form input[type="email"],
+  .grade-form input[type="month"],
   .grade-form select {
     font: inherit;
     font-weight: normal;
@@ -134,6 +135,48 @@
   .etiqueta { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
   .etiqueta.ok { background: var(--cor-ok-fundo); color: var(--cor-ok); }
   .etiqueta.off { background: #eceff1; color: var(--cor-suave); }
+  .etiqueta.nok { background: var(--cor-erro-fundo); color: var(--cor-erro); }
+  .etiqueta.st-RASCUNHO { background: #eceff1; color: var(--cor-suave); }
+  .etiqueta.st-EM_CONFERENCIA { background: #e8f0fb; color: var(--cor-primaria); }
+  .etiqueta.st-INSTRUINDO_SEI { background: var(--cor-alerta-fundo); color: var(--cor-alerta); }
+  .etiqueta.st-ENVIADA_COGECON { background: var(--cor-ok-fundo); color: var(--cor-ok); }
+
+  /* Lançamento */
+  .dica { font-size: 12px; color: var(--cor-suave); font-weight: normal; }
+  .dica.bloco { display: block; }
+  .cabecalho-form { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .cabecalho-form h2 { margin: 0; }
+  .grade-form label.largo { grid-column: span 2; }
+  .grade-form input:disabled { background: #f0f4f8; color: var(--cor-suave); }
+  .tabela-itens td { vertical-align: top; }
+  .tabela-itens .num-item { font-weight: 600; width: 40px; }
+  .tabela-itens input {
+    font: inherit;
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--cor-borda);
+    border-radius: 4px;
+  }
+  .tabela-itens input.lan-rel, .tabela-itens input.lan-qtd { max-width: 130px; text-align: right; }
+  .tabela-itens input:disabled { background: #f0f4f8; color: var(--cor-suave); }
+  input.obrigatorio { border-color: var(--cor-alerta); background: var(--cor-alerta-fundo); }
+  .bloco-eventuais { margin-top: 14px; }
+  .bloco-eventuais summary { cursor: pointer; font-weight: 600; color: var(--cor-primaria); padding: 6px 0; }
+  .avisos {
+    background: var(--cor-alerta-fundo);
+    color: var(--cor-alerta);
+    border: 1px solid #f0d58a;
+    border-radius: 4px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+  }
+  .avisos ul { margin: 6px 0 0; padding-left: 20px; }
+  .aviso-bloqueio {
+    background: #eceff1;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: var(--cor-suave);
+  }
 
   /* Página de acesso negado */
   .pagina-aviso { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }

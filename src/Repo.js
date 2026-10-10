@@ -135,6 +135,48 @@ function isoLocal_(data) {
   return Utilities.formatDate(data, FUSO, "yyyy-MM-dd'T'HH:mm:ssXXX");
 }
 
+/** Aba Config como objeto { chave: valor }. */
+function lerConfig_() {
+  const config = {};
+  listar_(ABAS.CONFIG).forEach(function (c) {
+    config[String(c.chave).trim()] = c.valor;
+  });
+  return config;
+}
+
+function numeroConfig_(config, chave) {
+  const v = config[chave];
+  const n = (typeof v === 'number') ? v : Number(String(v).trim().replace(',', '.'));
+  if (v === undefined || v === '' || isNaN(n)) {
+    throw new Error('A configuração ' + chave + ' está ausente ou inválida na aba Config.');
+  }
+  return n;
+}
+
+/** Valores de colunas que mudaram: { coluna: valorNovo }. */
+function diferencas_(atual, novos) {
+  const mudancas = {};
+  Object.keys(novos).forEach(function (k) {
+    if (valorComparavel_(atual[k]) !== valorComparavel_(novos[k])) mudancas[k] = novos[k];
+  });
+  return mudancas;
+}
+
+function valorComparavel_(v) {
+  if (v === undefined || v === null || v === '') return '';
+  if (v instanceof Date) return isoLocal_(v);
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  const s = String(v).trim();
+  return (s.toUpperCase() === 'TRUE' || s.toUpperCase() === 'FALSE') ? s.toUpperCase() : s;
+}
+
+/** Subconjunto das colunas indicadas, pronto para o Log. */
+function selecionar_(obj, chaves) {
+  const parte = {};
+  chaves.forEach(function (k) { parte[k] = obj[k]; });
+  return paraCliente_(parte);
+}
+
 function ehVerdadeiro_(v) {
   return v === true || String(v).trim().toUpperCase() === 'TRUE';
 }

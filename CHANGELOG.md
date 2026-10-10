@@ -3,6 +3,18 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.2.0] – 09/10/2026 – Fase 2: Lançamento
+
+### Incluído
+- Tela "Lançar competência" (FISCAL_TECNICO e SUPERADMIN): lista das competências, criação e edição com itens 1 a 5, itens eventuais recolhíveis, ANS e link da pasta do Drive.
+- Quantidade medida acompanha a do relatório; se forem diferentes, a observação do ajuste é obrigatória.
+- Cálculo do ANS: minutos = arredondar((100 − uptime%) / 100 × minutos do mês), com correção manual mediante observação.
+- Validações no servidor: competência única, dentro de uma vigência e de mês já encerrado; inteiros ≥ 0; competência enviada à COGECON bloqueada.
+- "Salvar rascunho" e "Enviar para conferência" (exige itens 1 a 5 e ANS). Edição em conferência mantém o status.
+- Avisos ao salvar: item com consumo ≥ 80% na vigência e ANS não cumprido.
+- Log de CRIAR, EDITAR e STATUS para competências e medições.
+- `carregarHistorico()`: carga de 2026-08 (enviada à COGECON) e 2026-09 (em conferência).
+
 ## [0.1.0] – 09/10/2026 – Fase 1: Base
 
 ### Incluído

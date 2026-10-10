@@ -1,0 +1,379 @@
+<section id="tela-lancamento" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <h1>Lançar competência</h1>
+    <button type="button" id="lan-nova" class="botao primario">Nova competência</button>
+  </div>
+
+  <div id="lan-lista-cartao" class="cartao">
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Status</th>
+          <th>ANS</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="lan-lista"></tbody>
+    </table>
+  </div>
+
+  <form id="lan-form" hidden autocomplete="off" novalidate>
+    <div id="lan-avisos" class="avisos" hidden></div>
+
+    <div class="cartao">
+      <div class="cabecalho-form">
+        <h2 id="lan-titulo">Nova competência</h2>
+        <span id="lan-status" class="etiqueta"></span>
+      </div>
+      <p id="lan-bloqueio" class="aviso-bloqueio" hidden>
+        Esta competência já foi enviada à COGECON e está bloqueada para edição.
+      </p>
+      <div class="grade-form">
+        <label>Competência (mês/ano)
+          <input type="month" id="lan-competencia">
+        </label>
+        <label>Vigência
+          <input type="text" id="lan-vigencia" readonly>
+        </label>
+        <label class="largo">Link da pasta do mês no Drive
+          <input type="text" id="lan-pasta" placeholder="https://drive.google.com/drive/folders/...">
+        </label>
+      </div>
+    </div>
+
+    <div class="cartao">
+      <h2>Itens medidos</h2>
+      <table class="tabela tabela-itens">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Descrição</th>
+            <th>Qtd. do relatório</th>
+            <th>Qtd. medida</th>
+            <th>Observação do ajuste</th>
+          </tr>
+        </thead>
+        <tbody id="lan-itens"></tbody>
+      </table>
+      <details id="lan-eventuais-bloco" class="bloco-eventuais">
+        <summary>Itens eventuais (preencher só se houve consumo no mês)</summary>
+        <table class="tabela tabela-itens">
+          <tbody id="lan-eventuais"></tbody>
+        </table>
+      </details>
+    </div>
+
+    <div class="cartao">
+      <h2>ANS</h2>
+      <div class="grade-form">
+        <label>Uptime do mês (%)
+          <input type="text" id="lan-uptime" inputmode="decimal" placeholder="ex.: 99,97">
+        </label>
+        <label>Minutos de indisponibilidade
+          <input type="text" id="lan-minutos" inputmode="numeric" readonly>
+        </label>
+        <label class="check">
+          <input type="checkbox" id="lan-minutos-manual"> Corrigir minutos manualmente
+        </label>
+        <label class="largo">Observação do ANS
+          <input type="text" id="lan-ans-obs">
+        </label>
+      </div>
+      <p id="lan-ans-calculo" class="dica"></p>
+    </div>
+
+    <div class="acoes">
+      <button type="button" id="lan-salvar" class="botao primario">Salvar rascunho</button>
+      <button type="button" id="lan-enviar" class="botao">Enviar para conferência</button>
+      <button type="button" id="lan-voltar" class="botao">Voltar à lista</button>
+    </div>
+  </form>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    const estado = { itens: [], competencias: [], ansLimiteMin: 45, mesLimite: '', atual: null };
+
+    function rotuloComp(c) { return c ? c.slice(5) + '/' + c.slice(0, 4) : ''; }
+    function fmtInt(n) { return Number(n).toLocaleString('pt-BR'); }
+    function fmtDec(n) { return String(n).replace('.', ','); }
+    /** Valor de um campo de quantidade sem o separador de milhar ("33.317" → "33317"). */
+    function semMilhar(v) { return String(v).trim().replace(/\./g, ''); }
+    /** Exibe a quantidade no padrão brasileiro, se for um inteiro válido. */
+    function qtdExibicao(v) {
+      const s = semMilhar(v);
+      return /^\d+$/.test(s) ? fmtInt(Number(s)) : String(v).trim();
+    }
+    function vazio(v) { return v === null || v === undefined || v === ''; }
+
+    function etiquetaStatus(status, rotulo) {
+      return '<span class="etiqueta st-' + esc(status) + '">' + esc(rotulo) + '</span>';
+    }
+
+    function textoAns(c) {
+      if (vazio(c.ansUptimePct)) return '<span class="dica">não informado</span>';
+      return esc(fmtDec(c.ansUptimePct)) + '% · ' + esc(c.ansMinutos) + ' min ' +
+        (c.ansCumprido ? '<span class="etiqueta ok">Cumprido</span>' : '<span class="etiqueta nok">Não cumprido</span>');
+    }
+
+    /* ---------- Lista ---------- */
+
+    function carregar() {
+      el('lan-lista').innerHTML = '<tr><td colspan="4" class="vazio">Carregando…</td></tr>';
+      return chamar('getDadosLancamento')
+        .then(function (r) {
+          estado.itens = r.itens;
+          estado.competencias = r.competencias;
+          estado.ansLimiteMin = r.ansLimiteMin;
+          estado.mesLimite = r.mesLimite;
+          renderizarLista();
+        })
+        .catch(function (erro) {
+          el('lan-lista').innerHTML = '<tr><td colspan="4" class="vazio">Não foi possível carregar.</td></tr>';
+          mostrarMensagem(erro.message, 'erro');
+        });
+    }
+
+    function renderizarLista() {
+      if (!estado.competencias.length) {
+        el('lan-lista').innerHTML = '<tr><td colspan="4" class="vazio">Nenhuma competência lançada.</td></tr>';
+        return;
+      }
+      el('lan-lista').innerHTML = estado.competencias.map(function (c) {
+        return '<tr>' +
+          '<td><strong>' + esc(rotuloComp(c.competencia)) + '</strong></td>' +
+          '<td>' + etiquetaStatus(c.status, c.statusRotulo) + '</td>' +
+          '<td>' + textoAns(c) + '</td>' +
+          '<td class="acoes-linha"><button type="button" class="botao pequeno" data-comp="' + esc(c.competencia) + '">' +
+            (c.status === 'ENVIADA_COGECON' ? 'Ver' : 'Abrir') + '</button></td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    /* ---------- Formulário ---------- */
+
+    function linhaItem(it, m) {
+      const consumo = it.tipo === 'CONSUMO';
+      const qtdPadrao = it.tipo === 'FIXO' && !m ? 1 : '';
+      const qtd = m ? m.quantidade : qtdPadrao;
+      const rel = m && consumo ? m.quantidadeRelatorio : '';
+      return '<tr data-item="' + it.item + '" data-tipo="' + esc(it.tipo) + '">' +
+        '<td class="num-item">' + it.item + '</td>' +
+        '<td>' + esc(it.descricao) + '<span class="dica bloco">' + esc(it.unidade) +
+          (it.fonte && it.fonte !== '—' ? ' · ' + esc(it.fonte) : '') + '</span></td>' +
+        '<td>' + (consumo
+          ? '<input type="text" inputmode="numeric" class="lan-rel" value="' + esc(vazio(rel) ? '' : qtdExibicao(rel)) + '">'
+          : '<span class="dica">—</span>') + '</td>' +
+        '<td><input type="text" inputmode="numeric" class="lan-qtd" value="' + esc(vazio(qtd) ? '' : qtdExibicao(qtd)) + '"' +
+          (consumo && !vazio(rel) && rel === qtd ? ' data-espelho="' + esc(qtdExibicao(rel)) + '"' : '') + '></td>' +
+        '<td><input type="text" class="lan-obs" value="' + esc(m ? m.ajusteObs : '') + '"></td>' +
+      '</tr>';
+    }
+
+    function montarFormulario(c) {
+      estado.atual = c;
+      limparMensagem();
+      el('lan-avisos').hidden = true;
+      el('lan-lista-cartao').hidden = true;
+      el('lan-nova').hidden = true;
+      el('lan-form').hidden = false;
+
+      const editavel = !c || c.editavel;
+      el('lan-titulo').textContent = c ? 'Competência ' + rotuloComp(c.competencia) : 'Nova competência';
+      el('lan-status').outerHTML = c
+        ? '<span id="lan-status" class="etiqueta st-' + esc(c.status) + '">' + esc(c.statusRotulo) + '</span>'
+        : '<span id="lan-status" class="etiqueta st-RASCUNHO">Nova</span>';
+      el('lan-bloqueio').hidden = editavel;
+
+      el('lan-competencia').value = c ? c.competencia : estado.mesLimite;
+      el('lan-competencia').max = estado.mesLimite;
+      el('lan-competencia').readOnly = !!c;
+      el('lan-vigencia').value = c ? c.vigencia : '(definida ao salvar)';
+      el('lan-pasta').value = c ? (c.pastaDrive || '') : '';
+
+      const medicoes = {};
+      (c ? c.medicoes : []).forEach(function (m) { medicoes[m.item] = m; });
+      const fixosEConsumo = estado.itens.filter(function (it) { return it.tipo !== 'EVENTUAL'; });
+      const eventuais = estado.itens.filter(function (it) { return it.tipo === 'EVENTUAL'; });
+      el('lan-itens').innerHTML = fixosEConsumo.map(function (it) { return linhaItem(it, medicoes[it.item]); }).join('');
+      el('lan-eventuais').innerHTML = eventuais.map(function (it) { return linhaItem(it, medicoes[it.item]); }).join('');
+      el('lan-eventuais-bloco').open = eventuais.some(function (it) { return !!medicoes[it.item]; });
+
+      const manual = !!c && !vazio(c.ansMinutos) && !vazio(c.ansMinutosCalculado) && c.ansMinutos !== c.ansMinutosCalculado;
+      el('lan-uptime').value = c && !vazio(c.ansUptimePct) ? fmtDec(c.ansUptimePct) : '';
+      el('lan-minutos-manual').checked = manual;
+      el('lan-minutos').value = c && !vazio(c.ansMinutos) ? c.ansMinutos : '';
+      el('lan-ans-obs').value = c ? (c.ansObs || '') : '';
+
+      const rascunho = !c || c.status === 'RASCUNHO';
+      el('lan-salvar').textContent = rascunho ? 'Salvar rascunho' : 'Salvar alterações';
+      el('lan-salvar').hidden = !editavel;
+      el('lan-enviar').hidden = !editavel || !rascunho;
+      el('lan-form').querySelectorAll('input').forEach(function (i) {
+        if (!editavel) i.disabled = true; else i.disabled = false;
+      });
+
+      document.querySelectorAll('#lan-form tr[data-item]').forEach(marcarAjuste);
+      atualizarAns();
+      window.scrollTo(0, 0);
+    }
+
+    function fecharFormulario() {
+      estado.atual = null;
+      el('lan-form').hidden = true;
+      el('lan-lista-cartao').hidden = false;
+      el('lan-nova').hidden = false;
+    }
+
+    /** Destaca a observação quando a quantidade medida difere da do relatório. */
+    function marcarAjuste(tr) {
+      const rel = tr.querySelector('.lan-rel');
+      const qtd = tr.querySelector('.lan-qtd');
+      const obs = tr.querySelector('.lan-obs');
+      const difere = rel && rel.value.trim() !== '' && qtd.value.trim() !== '' && semMilhar(rel.value) !== semMilhar(qtd.value);
+      obs.classList.toggle('obrigatorio', !!difere);
+      obs.placeholder = difere ? 'Obrigatória: explique o ajuste' : '';
+    }
+
+    function minutosDoMes(comp) {
+      if (!/^\d{4}-\d{2}$/.test(comp)) return null;
+      return new Date(Number(comp.slice(0, 4)), Number(comp.slice(5)), 0).getDate() * 1440;
+    }
+
+    function atualizarAns() {
+      const manual = el('lan-minutos-manual').checked;
+      el('lan-minutos').readOnly = !manual;
+      el('lan-ans-obs').classList.toggle('obrigatorio', manual);
+      el('lan-ans-obs').placeholder = manual ? 'Obrigatória: explique a correção dos minutos' : '';
+
+      const texto = el('lan-uptime').value.trim().replace(',', '.');
+      const minutosMes = minutosDoMes(el('lan-competencia').value);
+      if (texto === '' || !/^\d{1,3}(\.\d+)?$/.test(texto) || Number(texto) > 100 || !minutosMes) {
+        if (!manual) el('lan-minutos').value = '';
+        el('lan-ans-calculo').innerHTML = texto === '' ? '' : 'Uptime inválido: use um número entre 0 e 100 (ex.: 99,97).';
+        return;
+      }
+      const uptime = Number(texto);
+      const exato = (100 - uptime) / 100 * minutosMes;
+      const calculado = Math.round(exato);
+      if (!manual) el('lan-minutos').value = calculado;
+      const minutos = Number(el('lan-minutos').value);
+      const cumprido = el('lan-minutos').value !== '' && minutos <= estado.ansLimiteMin;
+      el('lan-ans-calculo').innerHTML =
+        '(100 − ' + esc(fmtDec(uptime)) + ')% × ' + fmtInt(minutosMes) + ' min = ' +
+        esc(fmtDec(Math.round(exato * 100) / 100)) + ' → <strong>' + calculado + ' min</strong> calculados. ' +
+        (cumprido
+          ? '<span class="etiqueta ok">ANS cumprido</span>'
+          : '<span class="etiqueta nok">ANS não cumprido</span>') +
+        ' <span class="dica">(limite de ' + estado.ansLimiteMin + ' min)</span>';
+    }
+
+    function coletar() {
+      const itens = [];
+      document.querySelectorAll('#lan-form tr[data-item]').forEach(function (tr) {
+        const rel = tr.querySelector('.lan-rel');
+        itens.push({
+          item: Number(tr.dataset.item),
+          quantidadeRelatorio: rel ? rel.value.trim() : '',
+          quantidade: tr.querySelector('.lan-qtd').value.trim(),
+          ajusteObs: tr.querySelector('.lan-obs').value
+        });
+      });
+      return {
+        novo: !estado.atual,
+        competencia: el('lan-competencia').value,
+        itens: itens,
+        ansUptimePct: el('lan-uptime').value.trim(),
+        ansMinutosManual: el('lan-minutos-manual').checked,
+        ansMinutos: el('lan-minutos').value.trim(),
+        ansObs: el('lan-ans-obs').value,
+        pastaDrive: el('lan-pasta').value
+      };
+    }
+
+    function mostrarAvisos(avisos) {
+      const caixa = el('lan-avisos');
+      if (!avisos || !avisos.length) { caixa.hidden = true; return; }
+      caixa.innerHTML = '<strong>Atenção</strong><ul>' +
+        avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+      caixa.hidden = false;
+    }
+
+    function ocupado(sim) {
+      document.querySelectorAll('#tela-lancamento button').forEach(function (b) { b.disabled = sim; });
+    }
+
+    function salvar(enviar) {
+      const dados = coletar();
+      if (enviar && !confirm('Enviar a competência ' + rotuloComp(dados.competencia) +
+          ' para conferência? Os itens 1 a 5 e o ANS precisam estar preenchidos.')) return;
+      ocupado(true);
+      chamar('salvarCompetencia', dados, enviar)
+        .then(function (r) {
+          estado.competencias = r.competencias;
+          renderizarLista();
+          montarFormulario(r.competencia);
+          mostrarMensagem(r.mensagem, 'sucesso');
+          mostrarAvisos(r.avisos);
+        })
+        .catch(function (erro) {
+          mostrarMensagem(erro.message, 'erro');
+          window.scrollTo(0, 0);
+        })
+        .then(function () { ocupado(false); });
+    }
+
+    /* ---------- Eventos ---------- */
+
+    el('lan-nova').addEventListener('click', function () { montarFormulario(null); });
+    el('lan-voltar').addEventListener('click', function () { limparMensagem(); fecharFormulario(); });
+    el('lan-salvar').addEventListener('click', function () { salvar(false); });
+    el('lan-enviar').addEventListener('click', function () { salvar(true); });
+
+    el('lan-lista').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('button[data-comp]');
+      if (!botao) return;
+      limparMensagem();
+      ocupado(true);
+      chamar('getCompetencia', botao.dataset.comp)
+        .then(montarFormulario)
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    });
+
+    el('lan-form').addEventListener('input', function (ev) {
+      const alvo = ev.target;
+      const tr = alvo.closest('tr[data-item]');
+      if (tr && alvo.classList.contains('lan-rel')) {
+        // A quantidade medida acompanha a do relatório até ser alterada à mão.
+        const qtd = tr.querySelector('.lan-qtd');
+        if (qtd.value === '' || qtd.value === qtd.dataset.espelho) qtd.value = alvo.value;
+        qtd.dataset.espelho = alvo.value;
+      }
+      if (tr) marcarAjuste(tr);
+      if (['lan-uptime', 'lan-minutos', 'lan-minutos-manual', 'lan-competencia'].indexOf(alvo.id) >= 0) atualizarAns();
+    });
+    el('lan-minutos-manual').addEventListener('change', atualizarAns);
+
+    // Ao sair de um campo de quantidade, mostra o número com separador de milhar.
+    el('lan-form').addEventListener('focusout', function (ev) {
+      const alvo = ev.target;
+      if (!alvo.classList.contains('lan-rel') && !alvo.classList.contains('lan-qtd')) return;
+      const formatado = qtdExibicao(alvo.value);
+      if (formatado === alvo.value) return;
+      const tr = alvo.closest('tr[data-item]');
+      const qtd = tr.querySelector('.lan-qtd');
+      if (alvo.classList.contains('lan-rel') && qtd.dataset.espelho === alvo.value) {
+        qtd.value = qtdExibicao(qtd.value);
+        qtd.dataset.espelho = formatado;
+      }
+      alvo.value = formatado;
+      marcarAjuste(tr);
+    });
+
+    window.TELAS.lancamento = { abrir: function () { fecharFormulario(); carregar(); } };
+  })();
+</script>

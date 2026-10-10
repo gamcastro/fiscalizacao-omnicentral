@@ -5,7 +5,7 @@
 const TITULO_APP = 'Fiscalização Técnica – Contrato 20/2025';
 
 /** Versão do sistema (SemVer). Atualizar junto com o CHANGELOG.md a cada entrega. */
-const VERSAO_APP = '0.1.0';
+const VERSAO_APP = '0.2.0';
 
 function doGet() {
   try {
@@ -40,6 +40,7 @@ function include(nome) {
 function menu_() {
   return [
     { id: 'painel', rotulo: 'Painel', perfis: TODOS_PERFIS },
+    { id: 'lancamento', rotulo: 'Lançar competência', perfis: [PERFIS.FISCAL_TECNICO] },
     { id: 'usuarios', rotulo: 'Usuários', perfis: [PERFIS.SUPERADMIN] }
   ];
 }
