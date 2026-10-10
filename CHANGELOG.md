@@ -3,6 +3,17 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.4.1] – 10/10/2026 – Ajustes da Fase 4
+
+### Removido
+- Ciente do gestor (botão, bloco "Ciente do gestor" e evento na linha do tempo). As colunas `cienteGestorPor` e `cienteGestorEm` continuam na aba `Competencias`, sem uso. A reabertura não mexe mais nesses campos.
+
+### Alterado
+- A linha do tempo não mostra mais a criação feita pela carga do histórico ("Carga inicial do histórico").
+
+### Incluído
+- `limparCompetenciaHomologacao()` / `limparSetembro2026Homologacao()`: apaga uma competência de teste na homologação; recusa rodar na produção.
+
 ## [0.4.0] – 10/10/2026 – Fase 4: SEI
 
 ### Incluído
