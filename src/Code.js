@@ -4,6 +4,16 @@
 
 const TITULO_APP = 'Fiscalização Técnica – Contrato 20/2025';
 
+/**
+ * ID do Apps Script de produção. Qualquer outro script com este código
+ * (a cópia de homologação) é tratado como HOMOLOGAÇÃO e mostra a faixa de aviso.
+ */
+const ID_SCRIPT_PRODUCAO = '126JuJAP_a2QBzHJDL-6ObrmRBlgc_iTd69gXioQifkGko6BQipqG0VOq';
+
+function ehHomologacao_() {
+  return ScriptApp.getScriptId() !== ID_SCRIPT_PRODUCAO;
+}
+
 /** Versão do sistema (SemVer). Atualizar junto com o CHANGELOG.md a cada entrega. */
 const VERSAO_APP = '0.3.0';
 
@@ -14,6 +24,7 @@ function doGet() {
       const negado = HtmlService.createTemplateFromFile('AcessoNegado');
       negado.email = email || '(e-mail não identificado)';
       negado.erro = '';
+      negado.homologacao = ehHomologacao_();
       return finalizarPagina_(negado.evaluate());
     }
     return finalizarPagina_(HtmlService.createTemplateFromFile('Index').evaluate());
@@ -21,13 +32,14 @@ function doGet() {
     const erro = HtmlService.createTemplateFromFile('AcessoNegado');
     erro.email = '';
     erro.erro = e.message;
+    erro.homologacao = ehHomologacao_();
     return finalizarPagina_(erro.evaluate());
   }
 }
 
 function finalizarPagina_(saida) {
   return saida
-    .setTitle(TITULO_APP)
+    .setTitle((ehHomologacao_() ? '[HOMOLOGAÇÃO] ' : '') + TITULO_APP)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
@@ -62,6 +74,7 @@ function getContextoInicial() {
     perfilRotulo: rotuloPerfil_(usuario.perfil),
     condicao: String(usuario.condicao),
     menu: menu,
-    versao: VERSAO_APP
+    versao: VERSAO_APP,
+    homologacao: ehHomologacao_()
   };
 }

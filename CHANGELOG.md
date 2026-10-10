@@ -7,6 +7,8 @@ Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em
 
 ### Incluído
 - `carregarFeriados2026()`: carga das 41 datas da Portaria TRE-MA nº 10/2026 na aba `Feriados` (inclui os pontos facultativos de 18/02 e 28/10 e os feriados municipais de São Luís de 29/06 e 08/09), com registro no `Log`. Executada em 10/10/2026.
+- Ambiente de homologação: planilha e script próprios, branch `homologacao`, `.clasp.json` apontando para a homologação e `.clasp.producao.json` para a produção.
+- Faixa "AMBIENTE DE HOMOLOGAÇÃO" e prefixo no título da aba do navegador quando o script não é o de produção.
 
 ## [0.3.0] – 09/10/2026 – Fase 3: Painel
 
