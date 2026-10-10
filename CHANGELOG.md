@@ -3,6 +3,16 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.4.2] – 10/10/2026 – Melhorias de uso
+
+### Incluído
+- Botão "Enviar para conferência" também na tela de detalhe (competência em rascunho), com a mesma exigência: itens 1 a 5 lançados e ANS informado.
+
+### Alterado
+- Lançamento: se só a quantidade medida for digitada, a quantidade do relatório recebe o mesmo número (ao sair do campo e ao salvar). A medida digitada não muda se o relatório for corrigido depois.
+- O destaque amarelo das observações (ajuste do item e correção do ANS) some quando o motivo é preenchido.
+- Painel: a coluna "IDs do SEI" passou a se chamar "Documentos SEI".
+
 ## [0.4.1] – 10/10/2026 – Ajustes da Fase 4
 
 ### Removido

@@ -230,14 +230,25 @@
       el('lan-nova').hidden = false;
     }
 
-    /** Destaca a observação quando a quantidade medida difere da do relatório. */
+    /** Destaca a observação enquanto a medida difere do relatório e o motivo ainda não foi escrito. */
     function marcarAjuste(tr) {
       const rel = tr.querySelector('.lan-rel');
       const qtd = tr.querySelector('.lan-qtd');
       const obs = tr.querySelector('.lan-obs');
       const difere = rel && rel.value.trim() !== '' && qtd.value.trim() !== '' && semMilhar(rel.value) !== semMilhar(qtd.value);
-      obs.classList.toggle('obrigatorio', !!difere);
+      obs.classList.toggle('obrigatorio', !!difere && obs.value.trim() === '');
       obs.placeholder = difere ? 'Obrigatória: explique o ajuste' : '';
+    }
+
+    /** Se só a medida foi digitada, o relatório recebe o mesmo número (o usuário pode ajustar depois). */
+    function preencherRelatorioVazio(tr) {
+      const rel = tr.querySelector('.lan-rel');
+      const qtd = tr.querySelector('.lan-qtd');
+      if (!rel || rel.value.trim() !== '' || qtd.value.trim() === '') return;
+      rel.value = qtd.value.trim();
+      // A medida foi digitada pelo usuário: ela não deve acompanhar correções futuras do relatório.
+      delete qtd.dataset.espelho;
+      marcarAjuste(tr);
     }
 
     function minutosDoMes(comp) {
@@ -248,7 +259,7 @@
     function atualizarAns() {
       const manual = el('lan-minutos-manual').checked;
       el('lan-minutos').readOnly = !manual;
-      el('lan-ans-obs').classList.toggle('obrigatorio', manual);
+      el('lan-ans-obs').classList.toggle('obrigatorio', manual && el('lan-ans-obs').value.trim() === '');
       el('lan-ans-obs').placeholder = manual ? 'Obrigatória: explique a correção dos minutos' : '';
 
       const texto = el('lan-uptime').value.trim().replace(',', '.');
@@ -276,6 +287,7 @@
     function coletar() {
       const itens = [];
       document.querySelectorAll('#lan-form tr[data-item]').forEach(function (tr) {
+        preencherRelatorioVazio(tr);
         const rel = tr.querySelector('.lan-rel');
         itens.push({
           item: Number(tr.dataset.item),
@@ -360,23 +372,26 @@
         qtd.dataset.espelho = alvo.value;
       }
       if (tr) marcarAjuste(tr);
-      if (['lan-uptime', 'lan-minutos', 'lan-minutos-manual', 'lan-competencia'].indexOf(alvo.id) >= 0) atualizarAns();
+      if (['lan-uptime', 'lan-minutos', 'lan-minutos-manual', 'lan-competencia', 'lan-ans-obs'].indexOf(alvo.id) >= 0) atualizarAns();
     });
     el('lan-minutos-manual').addEventListener('change', atualizarAns);
 
-    // Ao sair de um campo de quantidade, mostra o número com separador de milhar.
+    // Ao sair de um campo de quantidade: separador de milhar e, se só a medida foi digitada,
+    // o relatório recebe o mesmo número.
     el('lan-form').addEventListener('focusout', function (ev) {
       const alvo = ev.target;
       if (!alvo.classList.contains('lan-rel') && !alvo.classList.contains('lan-qtd')) return;
-      const formatado = qtdExibicao(alvo.value);
-      if (formatado === alvo.value) return;
       const tr = alvo.closest('tr[data-item]');
       const qtd = tr.querySelector('.lan-qtd');
-      if (alvo.classList.contains('lan-rel') && qtd.dataset.espelho === alvo.value) {
-        qtd.value = qtdExibicao(qtd.value);
-        qtd.dataset.espelho = formatado;
+      const formatado = qtdExibicao(alvo.value);
+      if (formatado !== alvo.value) {
+        if (alvo.classList.contains('lan-rel') && qtd.dataset.espelho === alvo.value) {
+          qtd.value = qtdExibicao(qtd.value);
+          qtd.dataset.espelho = formatado;
+        }
+        alvo.value = formatado;
       }
-      alvo.value = formatado;
+      if (alvo === qtd) preencherRelatorioVazio(tr);
       marcarAjuste(tr);
     });
 

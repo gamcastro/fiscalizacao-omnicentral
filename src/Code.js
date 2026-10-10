@@ -15,7 +15,7 @@ function ehHomologacao_() {
 }
 
 /** Versão do sistema (SemVer). Atualizar junto com o CHANGELOG.md a cada entrega. */
-const VERSAO_APP = '0.4.1';
+const VERSAO_APP = '0.4.2';
 
 function doGet() {
   try {
