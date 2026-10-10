@@ -178,6 +178,38 @@
     color: var(--cor-suave);
   }
 
+  /* Painel */
+  .subtitulo { font-size: 14px; margin: 20px 0 8px; color: var(--cor-suave); }
+  .lista-alertas { list-style: none; margin: 0; padding: 0; }
+  .lista-alertas li { padding: 9px 12px; border-radius: 4px; margin-bottom: 6px; border-left: 4px solid; }
+  .lista-alertas li.alerta-alerta { background: var(--cor-alerta-fundo); border-color: #e0a800; color: var(--cor-alerta); }
+  .lista-alertas li.alerta-critico { background: var(--cor-erro-fundo); border-color: var(--cor-erro); color: var(--cor-erro); }
+  .lista-alertas li.sem-alertas { background: var(--cor-ok-fundo); border-color: var(--cor-ok); color: var(--cor-ok); }
+  .lista-alertas li.vazio { border: 0; }
+  .lista-alertas a { font-weight: 600; color: inherit; margin-left: 6px; }
+
+  .grade-saldos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .card-saldo { border: 1px solid var(--cor-borda); border-radius: 6px; padding: 14px; background: #fff; }
+  .card-saldo.alerta { border-color: #e0a800; background: var(--cor-alerta-fundo); }
+  .card-saldo.critico { border-color: var(--cor-erro); background: var(--cor-erro-fundo); }
+  .card-titulo { font-size: 13px; min-height: 54px; }
+  .card-pct { font-size: 22px; font-weight: 600; margin: 8px 0 6px; }
+  .card-numeros { margin: 10px 0 6px; font-size: 13px; }
+  .card-numeros div { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--cor-borda); }
+  .card-numeros div:last-child { border-bottom: 0; }
+  .card-numeros dt { color: var(--cor-suave); }
+  .card-numeros dd { margin: 0; font-weight: 600; }
+
+  .barra { height: 8px; background: #e4e7eb; border-radius: 4px; overflow: hidden; }
+  .barra-preenchida { height: 100%; background: var(--cor-primaria); }
+  .barra-preenchida.alerta { background: #e0a800; }
+  .barra-preenchida.critico { background: var(--cor-erro); }
+
+  .tabela-eventuais .numero { text-align: right; white-space: nowrap; }
+  .tabela-eventuais .coluna-barra { width: 30%; }
+  .tabela-eventuais tr.alerta td { background: var(--cor-alerta-fundo); }
+  .tabela-eventuais tr.critico td { background: var(--cor-erro-fundo); }
+
   /* Página de acesso negado */
   .pagina-aviso { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
   .aviso { max-width: 520px; width: 100%; }

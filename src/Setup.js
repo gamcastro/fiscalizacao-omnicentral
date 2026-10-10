@@ -13,6 +13,7 @@ const FORMATOS_SETUP = {
     criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm'
   },
   Medicoes: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  Feriados: { data: 'dd/mm/yyyy' },
   Log: { timestamp: 'dd/mm/yyyy hh:mm:ss' }
 };
 

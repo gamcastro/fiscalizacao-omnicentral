@@ -3,6 +3,15 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.3.0] – 09/10/2026 – Fase 3: Painel
+
+### Incluído
+- Painel (todos os perfis): cards de saldo dos itens 1 a 5 (contratado, consumido, saldo e barra de %), tabela dos itens eventuais, destaque a partir de 80% e acima de 100%.
+- Pendências e alertas: saldo ≥ `ALERTA_SALDO`, ANS não cumprido, meses encerrados da vigência ainda não lançados (a partir do 1º dia útil do mês seguinte) e competência sem os 4 IDs do SEI depois de 10 dias úteis contados do 1º dia útil do mês seguinte.
+- Tabela das competências da vigência com status, ANS e IDs do SEI (x/4). Fiscal técnico e superadmin abrem a competência direto do painel.
+- Nova aba `Feriados` (`data`, `descricao`), criada pelo `setup()`, usada na contagem de dias úteis.
+- O consumo da vigência passa a ser calculado num só lugar (painel e aviso ao salvar).
+
 ## [0.2.0] – 09/10/2026 – Fase 2: Lançamento
 
 ### Incluído

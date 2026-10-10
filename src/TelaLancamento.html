@@ -333,15 +333,18 @@
     el('lan-salvar').addEventListener('click', function () { salvar(false); });
     el('lan-enviar').addEventListener('click', function () { salvar(true); });
 
-    el('lan-lista').addEventListener('click', function (ev) {
-      const botao = ev.target.closest('button[data-comp]');
-      if (!botao) return;
+    function abrirCompetencia(comp) {
       limparMensagem();
       ocupado(true);
-      chamar('getCompetencia', botao.dataset.comp)
+      return chamar('getCompetencia', comp)
         .then(montarFormulario)
         .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
         .then(function () { ocupado(false); });
+    }
+
+    el('lan-lista').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('button[data-comp]');
+      if (botao) abrirCompetencia(botao.dataset.comp);
     });
 
     el('lan-form').addEventListener('input', function (ev) {
@@ -374,6 +377,21 @@
       marcarAjuste(tr);
     });
 
-    window.TELAS.lancamento = { abrir: function () { fecharFormulario(); carregar(); } };
+    /** opcoes.competencia abre uma competência; opcoes.nova abre "Nova competência" naquele mês. */
+    window.TELAS.lancamento = {
+      abrir: function (opcoes) {
+        fecharFormulario();
+        carregar().then(function () {
+          if (!estado.itens.length) return;
+          if (opcoes.competencia) {
+            abrirCompetencia(opcoes.competencia);
+          } else if (opcoes.nova) {
+            montarFormulario(null);
+            el('lan-competencia').value = opcoes.nova;
+            atualizarAns();
+          }
+        });
+      }
+    };
   })();
 </script>

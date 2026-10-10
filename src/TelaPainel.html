@@ -1,0 +1,153 @@
+<section id="tela-painel" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <div>
+      <h1>Painel</h1>
+      <span id="pai-vigencia" class="dica"></span>
+    </div>
+    <button type="button" id="pai-atualizar" class="botao">Atualizar</button>
+  </div>
+
+  <div class="cartao">
+    <h2>Pendências e alertas</h2>
+    <ul id="pai-alertas" class="lista-alertas"></ul>
+  </div>
+
+  <div class="cartao">
+    <h2>Saldo da vigência por item</h2>
+    <div id="pai-saldos" class="grade-saldos"></div>
+    <h3 class="subtitulo">Itens eventuais</h3>
+    <table class="tabela tabela-eventuais">
+      <tbody id="pai-eventuais"></tbody>
+    </table>
+  </div>
+
+  <div class="cartao">
+    <h2>Competências da vigência</h2>
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Competência</th>
+          <th>Status</th>
+          <th>ANS</th>
+          <th>IDs do SEI</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="pai-competencias"></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    let dados = null;
+
+    function fmtInt(n) { return Number(n).toLocaleString('pt-BR'); }
+    function fmtPct(fracao) { return (fracao * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'; }
+    function dataBr(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+    function rotuloComp(c) { return c.slice(5) + '/' + c.slice(0, 4); }
+
+    function nivelSaldo(fracao) {
+      if (fracao >= 1) return 'critico';
+      if (fracao >= dados.alertaSaldo) return 'alerta';
+      return 'normal';
+    }
+
+    function barra(fracao) {
+      return '<div class="barra"><div class="barra-preenchida ' + nivelSaldo(fracao) + '" style="width:' +
+        Math.min(100, fracao * 100).toFixed(1) + '%"></div></div>';
+    }
+
+    function carregar() {
+      el('pai-alertas').innerHTML = '<li class="vazio">Carregando…</li>';
+      return chamar('getPainel')
+        .then(function (r) { dados = r; renderizar(); })
+        .catch(function (erro) {
+          el('pai-alertas').innerHTML = '<li class="vazio">Não foi possível carregar o painel.</li>';
+          mostrarMensagem(erro.message, 'erro');
+        });
+    }
+
+    function renderizar() {
+      const v = dados.vigencia;
+      el('pai-vigencia').textContent = 'Vigência ' + v.id + ' · ' + dataBr(v.inicio) + ' a ' + dataBr(v.fim) +
+        (v.documento ? ' · ' + v.documento : '');
+
+      // Alertas
+      el('pai-alertas').innerHTML = dados.alertas.length
+        ? dados.alertas.map(function (a) {
+            let acao = '';
+            if (dados.podeLancar && a.competencia) {
+              acao = a.tipo === 'nao_lancada'
+                ? ' <a href="#" data-nova="' + esc(a.competencia) + '">Lançar</a>'
+                : ' <a href="#" data-abrir="' + esc(a.competencia) + '">Abrir</a>';
+            }
+            return '<li class="alerta-' + esc(a.nivel) + '">' + esc(a.texto) + acao + '</li>';
+          }).join('')
+        : '<li class="sem-alertas">Nenhuma pendência.</li>';
+
+      // Saldos dos itens 1 a 5
+      el('pai-saldos').innerHTML = dados.saldos.filter(function (s) { return s.tipo !== 'EVENTUAL'; }).map(function (s) {
+        return '<div class="card-saldo ' + nivelSaldo(s.fracao) + '">' +
+          '<div class="card-titulo"><strong>Item ' + s.item + '</strong> ' + esc(s.descricao) + '</div>' +
+          '<div class="card-pct">' + fmtPct(s.fracao) + ' <span class="dica">consumido</span></div>' +
+          barra(s.fracao) +
+          '<dl class="card-numeros">' +
+            '<div><dt>Contratado</dt><dd>' + fmtInt(s.contratado) + '</dd></div>' +
+            '<div><dt>Consumido</dt><dd>' + fmtInt(s.consumido) + '</dd></div>' +
+            '<div><dt>Saldo</dt><dd>' + fmtInt(s.saldo) + '</dd></div>' +
+          '</dl>' +
+          '<span class="dica">' + esc(s.unidade) + '</span>' +
+        '</div>';
+      }).join('');
+
+      // Itens eventuais
+      el('pai-eventuais').innerHTML = dados.saldos.filter(function (s) { return s.tipo === 'EVENTUAL'; }).map(function (s) {
+        return '<tr class="' + nivelSaldo(s.fracao) + '">' +
+          '<td class="num-item">' + s.item + '</td>' +
+          '<td>' + esc(s.descricao) + ' <span class="dica">(' + esc(s.unidade) + ')</span></td>' +
+          '<td class="numero">' + fmtInt(s.consumido) + ' de ' + fmtInt(s.contratado) + '</td>' +
+          '<td class="coluna-barra">' + barra(s.fracao) + '</td>' +
+          '<td class="numero">' + fmtPct(s.fracao) + '</td>' +
+        '</tr>';
+      }).join('');
+
+      // Competências
+      el('pai-competencias').innerHTML = dados.competencias.length
+        ? dados.competencias.map(function (c) {
+            const ans = c.ansUptimePct === null
+              ? '<span class="dica">não informado</span>'
+              : String(c.ansUptimePct).replace('.', ',') + '% · ' + c.ansMinutos + ' min ' +
+                (c.ansCumprido ? '<span class="etiqueta ok">Cumprido</span>' : '<span class="etiqueta nok">Não cumprido</span>');
+            const ids = c.idsPreenchidos === 4
+              ? '<span class="etiqueta ok">4/4 ✓</span>'
+              : '<span class="etiqueta off" title="Faltam: ' + esc(c.idsFaltando.join(', ')) + '">' + c.idsPreenchidos + '/4</span>';
+            return '<tr>' +
+              '<td><strong>' + esc(rotuloComp(c.competencia)) + '</strong></td>' +
+              '<td><span class="etiqueta st-' + esc(c.status) + '">' + esc(c.statusRotulo) + '</span></td>' +
+              '<td>' + ans + '</td>' +
+              '<td>' + ids + '</td>' +
+              '<td class="acoes-linha">' + (dados.podeLancar
+                ? '<button type="button" class="botao pequeno" data-abrir="' + esc(c.competencia) + '">' +
+                    (c.status === 'ENVIADA_COGECON' ? 'Ver' : 'Abrir') + '</button>'
+                : '') + '</td>' +
+            '</tr>';
+          }).join('')
+        : '<tr><td colspan="5" class="vazio">Nenhuma competência lançada nesta vigência.</td></tr>';
+    }
+
+    el('pai-atualizar').addEventListener('click', function () { limparMensagem(); carregar(); });
+
+    el('tela-painel').addEventListener('click', function (ev) {
+      const alvo = ev.target.closest('[data-abrir], [data-nova]');
+      if (!alvo) return;
+      ev.preventDefault();
+      if (alvo.dataset.abrir) irPara('lancamento', { competencia: alvo.dataset.abrir });
+      else irPara('lancamento', { nova: alvo.dataset.nova });
+    });
+
+    window.TELAS.painel = { abrir: carregar };
+  })();
+</script>

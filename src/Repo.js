@@ -14,6 +14,7 @@ const ABAS = {
   PRECOS: 'PrecosReferencia',
   COMPETENCIAS: 'Competencias',
   MEDICOES: 'Medicoes',
+  FERIADOS: 'Feriados',
   LOG: 'Log'
 };
 
@@ -30,6 +31,7 @@ const CABECALHOS = {
     'cienteGestorPor', 'cienteGestorEm', 'obs', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
   Medicoes: ['competencia', 'item', 'quantidade', 'quantidadeRelatorio', 'ajusteObs',
     'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  Feriados: ['data', 'descricao'],
   Log: ['timestamp', 'email', 'acao', 'entidade', 'chave', 'antes', 'depois']
 };
 

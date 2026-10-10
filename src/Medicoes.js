@@ -358,7 +358,28 @@ function vigenciaDaCompetencia_(comp) {
 function avisosDaCompetencia_(vigenciaId, config, ans, limiteAns) {
   const avisos = [];
   const alerta = numeroConfig_(config, 'ALERTA_SALDO');
+  const consumo = consumoDaVigencia_(vigenciaId);
+  quantidadesContratadas_(vigenciaId).forEach(function (q) {
+    const usado = consumo[q.item] || 0;
+    if (q.contratado > 0 && usado / q.contratado >= alerta) {
+      avisos.push('Item ' + q.item + ': ' + formatarPercentual_(usado / q.contratado) +
+        ' da quantidade contratada já consumida na vigência (' + formatarInteiro_(usado) + ' de ' +
+        formatarInteiro_(q.contratado) + ').');
+    }
+  });
 
+  if (ans.cumprido === false) {
+    avisos.push('ANS não cumprido: ' + ans.minutos + ' minutos de indisponibilidade (limite de ' + limiteAns +
+      '). Registre a ocorrência e avise o gestor.');
+  }
+  return avisos;
+}
+
+/**
+ * Soma das quantidades medidas por item nas competências da vigência,
+ * em qualquer status (inclusive rascunho): { item: total }.
+ */
+function consumoDaVigencia_(vigenciaId) {
   const competenciasDaVigencia = {};
   listar_(ABAS.COMPETENCIAS).forEach(function (c) {
     if (String(c.vigencia).trim() === vigenciaId) competenciasDaVigencia[textoCompetencia_(c.competencia)] = true;
@@ -369,23 +390,13 @@ function avisosDaCompetencia_(vigenciaId, config, ans, limiteAns) {
     const item = Number(m.item);
     consumo[item] = (consumo[item] || 0) + (Number(m.quantidade) || 0);
   });
-  listar_(ABAS.QTD_CONTRATADAS)
-    .filter(function (q) { return String(q.vigencia).trim() === vigenciaId; })
-    .forEach(function (q) {
-      const contratado = Number(q.qtdContratada);
-      const usado = consumo[Number(q.item)] || 0;
-      if (contratado > 0 && usado / contratado >= alerta) {
-        avisos.push('Item ' + q.item + ': ' + formatarPercentual_(usado / contratado) +
-          ' da quantidade contratada já consumida na vigência (' + formatarInteiro_(usado) + ' de ' +
-          formatarInteiro_(contratado) + ').');
-      }
-    });
+  return consumo;
+}
 
-  if (ans.cumprido === false) {
-    avisos.push('ANS não cumprido: ' + ans.minutos + ' minutos de indisponibilidade (limite de ' + limiteAns +
-      '). Registre a ocorrência e avise o gestor.');
-  }
-  return avisos;
+function quantidadesContratadas_(vigenciaId) {
+  return listar_(ABAS.QTD_CONTRATADAS)
+    .filter(function (q) { return String(q.vigencia).trim() === vigenciaId; })
+    .map(function (q) { return { item: Number(q.item), contratado: Number(q.qtdContratada) }; });
 }
 
 /* ---------- Utilitários de competência e formatação ---------- */

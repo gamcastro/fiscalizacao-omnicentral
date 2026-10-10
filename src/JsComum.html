@@ -49,7 +49,8 @@
     return partes.day + '/' + partes.month + '/' + partes.year + ' ' + partes.hour + ':' + partes.minute;
   }
 
-  function irPara(id) {
+  /** Mostra a tela `id`; `opcoes` é repassado ao abrir() da tela (ex.: competência a abrir). */
+  function irPara(id, opcoes) {
     limparMensagem();
     document.querySelectorAll('.tela').forEach(function (t) { t.hidden = true; });
     const tela = document.getElementById('tela-' + id);
@@ -58,7 +59,7 @@
       a.classList.toggle('ativo', a.dataset.tela === id);
     });
     App.telaAtual = id;
-    if (window.TELAS[id] && window.TELAS[id].abrir) window.TELAS[id].abrir();
+    if (window.TELAS[id] && window.TELAS[id].abrir) window.TELAS[id].abrir(opcoes || {});
   }
 
   function iniciarApp() {
