@@ -255,6 +255,18 @@
     .grade-detalhe, .grade-textos { grid-template-columns: 1fr; }
   }
 
+  /* Histórico */
+  .filtro { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+  .filtro select {
+    font: inherit; font-weight: normal; padding: 6px 8px;
+    border: 1px solid var(--cor-borda); border-radius: 4px; background: #fff;
+  }
+  .tabela-historico th, .tabela-historico td { padding: 7px 8px; font-size: 13px; }
+  .texto-csv {
+    width: 100%; font-family: Consolas, monospace; font-size: 12px;
+    border: 1px solid var(--cor-borda); border-radius: 4px; padding: 8px; margin-top: 8px;
+  }
+
   /* Página de acesso negado */
   .pagina-aviso { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
   .aviso { max-width: 520px; width: 100%; }
