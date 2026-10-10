@@ -3,9 +3,16 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
-## [Não lançado]
+## [0.4.0] – 10/10/2026 – Fase 4: SEI
 
 ### Incluído
+- Tela de detalhe da competência (todos os perfis): resumo das quantidades e do ANS, pasta do Drive, linha do tempo de status (a partir do `Log`) e ciente do gestor.
+- IDs do SEI (só números) e data de envio à COGECON (não futura, não anterior ao mês seguinte à competência), editáveis por fiscal técnico e superadmin até o envio.
+- Transições "Iniciar instrução no SEI" (EM_CONFERENCIA → INSTRUINDO_SEI) e "Marcar como enviada à COGECON" (exige os 4 IDs e a data). Competência enviada fica bloqueada.
+- Reabertura pelo superadmin com justificativa no `Log`: volta para INSTRUINDO_SEI e limpa o ciente do gestor.
+- Ciente do gestor (só perfil Gestor) em competência enviada.
+- Textos do atesto e do despacho (SPEC, seção 6) com botão "Copiar" que leva a formatação e a tabela para o editor do SEI; marcadores e avisos quando falta ID ou ANS.
+- O painel abre o detalhe da competência para todos os perfis; o lançamento ganhou o botão "Ver detalhe e SEI".
 - `carregarFeriados2026()`: carga das 41 datas da Portaria TRE-MA nº 10/2026 na aba `Feriados` (inclui os pontos facultativos de 18/02 e 28/10 e os feriados municipais de São Luís de 29/06 e 08/09), com registro no `Log`. Executada em 10/10/2026.
 - Ambiente de homologação: planilha e script próprios, branch `homologacao`, `.clasp.json` apontando para a homologação e `.clasp.producao.json` para a produção.
 - Faixa "AMBIENTE DE HOMOLOGAÇÃO" e prefixo no título da aba do navegador quando o script não é o de produção.

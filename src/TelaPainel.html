@@ -79,10 +79,10 @@
       el('pai-alertas').innerHTML = dados.alertas.length
         ? dados.alertas.map(function (a) {
             let acao = '';
-            if (dados.podeLancar && a.competencia) {
-              acao = a.tipo === 'nao_lancada'
-                ? ' <a href="#" data-nova="' + esc(a.competencia) + '">Lançar</a>'
-                : ' <a href="#" data-abrir="' + esc(a.competencia) + '">Abrir</a>';
+            if (a.competencia && a.tipo === 'nao_lancada') {
+              if (dados.podeLancar) acao = ' <a href="#" data-nova="' + esc(a.competencia) + '">Lançar</a>';
+            } else if (a.competencia) {
+              acao = ' <a href="#" data-abrir="' + esc(a.competencia) + '">Abrir</a>';
             }
             return '<li class="alerta-' + esc(a.nivel) + '">' + esc(a.texto) + acao + '</li>';
           }).join('')
@@ -129,10 +129,8 @@
               '<td><span class="etiqueta st-' + esc(c.status) + '">' + esc(c.statusRotulo) + '</span></td>' +
               '<td>' + ans + '</td>' +
               '<td>' + ids + '</td>' +
-              '<td class="acoes-linha">' + (dados.podeLancar
-                ? '<button type="button" class="botao pequeno" data-abrir="' + esc(c.competencia) + '">' +
-                    (c.status === 'ENVIADA_COGECON' ? 'Ver' : 'Abrir') + '</button>'
-                : '') + '</td>' +
+              '<td class="acoes-linha"><button type="button" class="botao pequeno" data-abrir="' + esc(c.competencia) + '">' +
+                (dados.podeLancar && c.status !== 'ENVIADA_COGECON' ? 'Abrir' : 'Ver') + '</button></td>' +
             '</tr>';
           }).join('')
         : '<tr><td colspan="5" class="vazio">Nenhuma competência lançada nesta vigência.</td></tr>';
@@ -144,7 +142,7 @@
       const alvo = ev.target.closest('[data-abrir], [data-nova]');
       if (!alvo) return;
       ev.preventDefault();
-      if (alvo.dataset.abrir) irPara('lancamento', { competencia: alvo.dataset.abrir });
+      if (alvo.dataset.abrir) irPara('detalhe', { competencia: alvo.dataset.abrir });
       else irPara('lancamento', { nova: alvo.dataset.nova });
     });
 

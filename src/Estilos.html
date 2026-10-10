@@ -224,6 +224,37 @@
   .tabela-eventuais tr.alerta td { background: var(--cor-alerta-fundo); }
   .tabela-eventuais tr.critico td { background: var(--cor-erro-fundo); }
 
+  /* Detalhe da competência */
+  h3 { font-size: 14px; margin: 0; }
+  .numero { text-align: right; white-space: nowrap; }
+  .grade-detalhe { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; }
+  .grade-detalhe > .cartao { margin-bottom: 16px; }
+  .linha-info { margin: 10px 0 0; }
+  .linha-tempo { list-style: none; margin: 0 0 12px; padding: 0 0 0 14px; border-left: 2px solid var(--cor-borda); }
+  .linha-tempo li { position: relative; padding: 0 0 12px 8px; }
+  .linha-tempo li::before {
+    content: ''; position: absolute; left: -20px; top: 4px;
+    width: 10px; height: 10px; border-radius: 50%; background: var(--cor-primaria);
+  }
+  .linha-tempo li .dica { display: block; }
+  .bloco-reabrir { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--cor-borda); }
+  .bloco-reabrir label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+  .bloco-reabrir textarea { font: inherit; font-weight: normal; padding: 7px 9px; border: 1px solid var(--cor-borda); border-radius: 4px; }
+  .grade-form input[type="date"] {
+    font: inherit; font-weight: normal; padding: 7px 9px; border: 1px solid var(--cor-borda); border-radius: 4px;
+  }
+  .grade-textos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grade-textos .cabecalho-form { justify-content: space-between; margin-bottom: 8px; }
+  .documento-sei {
+    border: 1px solid var(--cor-borda); border-radius: 4px; background: #fff;
+    padding: 14px 18px; font-family: Calibri, Arial, sans-serif; font-size: 13px; line-height: 1.45;
+  }
+  .documento-sei p { margin: 0 0 8px; }
+
+  @media (max-width: 1100px) {
+    .grade-detalhe, .grade-textos { grid-template-columns: 1fr; }
+  }
+
   /* Página de acesso negado */
   .pagina-aviso { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
   .aviso { max-width: 520px; width: 100%; }
