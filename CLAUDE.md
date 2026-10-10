@@ -19,7 +19,7 @@ A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudan
 | Script ID | `1ms-QRsChJFpfF5WkwFC93MkWDnj3Zv_M_oU9lmXrxZcTuvAmunvY2UuL` | `126JuJAP_a2QBzHJDL-6ObrmRBlgc_iTd69gXioQifkGko6BQipqG0VOq` |
 | Config do clasp | `.clasp.json` (padrão) | `.clasp.producao.json` (sempre com `-P`) |
 | URL de teste (@HEAD) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbwvD2-7WEXAHkvdA1pPUoEqi2vPw9jx48yrds01-IQ/dev | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbzUz9A8WNWziWTH6zvrOUYeA5hbh3xfGWhItbEWpWLD/dev |
-| URL publicada (/exec) | ainda não criada | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ/exec |
+| URL publicada (/exec) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbyJVIpXMdVsZ1wxc8ujmlgjVhT9fGVePivKOjd0Di7-a5ERMQoL6iAOZfO07YMr2IjU/exec (para outras pessoas testarem; atualizar com `clasp deploy -i AKfycbyJVIpXMdVsZ1wxc8ujmlgjVhT9fGVePivKOjd0Di7-a5ERMQoL6iAOZfO07YMr2IjU -d "..."`) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ/exec |
 
 Fluxo:
 1. Todo desenvolvimento acontece na branch `homologacao`. `clasp push` (sem `-P`) envia para a homologação. O George testa na URL de homologação. Nela pode haver dados de teste.
