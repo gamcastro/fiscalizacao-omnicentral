@@ -31,8 +31,8 @@ Começa no 1º dia útil do mês seguinte à competência:
    1. Relatório de Consumo de Itens;
    2. Relatório de Cumprimento do ANS;
    3. Atesto;
-   4. Despacho à COGECON.
-7. Encaminhar o processo à COGECON.
+   4. Despacho à unidade de pagamento (ASGEC desde a competência 09/2026; antes, COGECON).
+7. Encaminhar o processo à unidade de pagamento (ASGEC desde a competência 09/2026).
 
 O app não acessa o SEI nem o SZ.chat. Os números e os IDs do SEI são digitados.
 
@@ -43,7 +43,7 @@ O superadmin cadastra todos os usuários. Quem não estiver cadastrado e ativo v
 | Perfil (código) | Quem (Portaria 7/2025) | Pode |
 |---|---|---|
 | `SUPERADMIN` | George André Melo Castro – george.castro@tre-ma.jus.br | Tudo, inclusive cadastrar usuários, editar configurações e reabrir competência enviada. |
-| `FISCAL_TECNICO` | Titular: George André Melo Castro · Substituto: Lourencio Monteiro de Melo | Lançar e editar competências, registrar ANS e IDs do SEI, mudar status até "Enviada à COGECON", gerar textos. |
+| `FISCAL_TECNICO` | Titular: George André Melo Castro · Substituto: Lourencio Monteiro de Melo | Lançar e editar competências, registrar ANS e IDs do SEI, mudar status até "Enviado para pagamento", gerar textos. |
 | `GESTOR` | Titular: Jaime Monteiro da Silva Júnior · Substituto: Júlio César Macêdo Dutra | Ver tudo (painel, competências, histórico). Registrar "ciente" numa competência. |
 | `FISCAL_DEMANDANTE` | Titular: Fagianni Viana de Miranda · Substituto: Christiano Anderson Neitzke | Ver tudo. |
 | `FISCAL_ADMINISTRATIVO` | Titular: Antoniette Conceição de Maria Freitas Coelho · Substituta: Rosinete Maria de Sousa Everton | Ver tudo. |
@@ -67,6 +67,7 @@ Linha 1 de cada aba é o cabeçalho. O código lê as colunas pelo nome do cabe�
 | ANS_PERCENTUAL | 99,741 | Referência do TR |
 | ALERTA_SALDO | 0,8 | 80% |
 | SEI_PAGAMENTO | 0006617-02.2025.6.27.8000 | |
+| UNIDADE_PAGAMENTO | ASGEC | Destinatária do despacho de pagamento. ASGEC desde a competência 09/2026; antes, COGECON (mudança informada em 10/10/2026) |
 | FISCAL_TECNICO_ASSINATURA | George André Melo Castro | Nome no rodapé do atesto e do despacho |
 
 ### 3.2 `Usuarios`
@@ -128,7 +129,7 @@ Status, em ordem:
 1. `RASCUNHO`
 2. `EM_CONFERENCIA`
 3. `INSTRUINDO_SEI`
-4. `ENVIADA_COGECON`
+4. `ENVIADA_COGECON` (rótulo na tela: "Enviado para pagamento". O código interno e a coluna `dataEnvioCogecon` foram mantidos quando o destino passou a ser a ASGEC.)
 
 ### 3.8 `Medicoes` (uma linha por competência e item)
 `competencia` · `item` · `quantidade` · `quantidadeRelatorio` (valor bruto do relatório) · `ajusteObs` (ex.: "excluídas 2 msgs da campanha Teste Mudança Sessão") · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
@@ -194,7 +195,6 @@ Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado.
 
 ### 6.1 Atesto
 ```
-ATESTO
 Atesto, para os devidos fins, que a empresa {EMPRESA_MAIUSCULA}, inscrita no CNPJ sob o nº {CNPJ}, executou de forma satisfatória, no período de {DATA_INICIO} a {DATA_FIM}, os serviços contratados relativos ao {OBJETO_ATESTO}.
 Segue discriminação:
 [tabela: Item | Descrição | Unidade de Medida | Quantidade — itens 1 a 5 + eventuais com quantidade > 0]
@@ -202,12 +202,13 @@ Os serviços foram executados em conformidade com as especificações técnicas,
 {FISCAL_TECNICO_ASSINATURA}
 Fiscal Técnico Contrato 20/2025
 ```
+- O texto não leva o título "ATESTO": o tipo de documento Atesto do SEI já traz o título (decisão de 10/10/2026).
 - Se `ansCumprido` = FALSE, a frase do ANS muda para: "Registra-se que o ANS não foi integralmente atendido no período, com {ansMinutos} minutos de indisponibilidade, conforme relatório (ID {idRelANS}), conforme ocorrência registrada."
 - Se `idRelANS` estiver vazio, mostrar `[ID do Relatório de Cumprimento do ANS]` e um aviso.
 
 ### 6.2 Despacho
 ```
-À COGECON,
+À {UNIDADE_PAGAMENTO},
 Encaminho o processo para prosseguimento da análise e pagamento referente ao Contrato nº 20/2025 (OMNICENTRAL), para a competência de {DATA_INICIO} a {DATA_FIM}.
 Para este fim, foram incluídos os Relatórios de Fiscalização e o Atesto de Recebimento de Serviços, conforme identificadores abaixo:
 • Relatórios de Fiscalização: id {idRelConsumo} e {idRelANS}.

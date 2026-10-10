@@ -6,22 +6,38 @@ A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudan
 
 ## Stack e comandos
 
-- Google Apps Script (runtime V8), script vinculado à planilha "Fiscalização Técnica – Contrato 20/2025".
+- Google Apps Script (runtime V8), script vinculado à planilha. Há dois ambientes, cada um com sua planilha e seu script (ver abaixo).
 - Front-end: HtmlService com templates (`*.html`), chamadas ao servidor via `google.script.run`.
-- Desenvolvimento local com clasp. O código fica em `src/` (`rootDir` do `.clasp.json`).
-- Comandos:
-  - `clasp push`: envia o código (use depois de cada alteração testável).
-  - `clasp open-script`: abre o editor do Apps Script (clasp 3.x; o antigo `clasp open` não existe mais).
-  - Teste pela implantação de teste (@HEAD), que sempre roda o último `clasp push` e só abre para quem edita o script:
-    https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbzUz9A8WNWziWTH6zvrOUYeA5hbh3xfGWhItbEWpWLD/dev
-  - `clasp deploy`: **somente quando o George pedir**.
+- Desenvolvimento local com clasp 3.x. O código fica em `src/` (`rootDir`). `clasp open-script` abre o editor (o antigo `clasp open` não existe mais).
+
+## Ambientes e fluxo de trabalho
+
+| | Homologação | Produção |
+|---|---|---|
+| Branch | `homologacao` | `main` |
+| Planilha | "Fiscalização Técnica – Contrato 20/2025 [HOMOLOGAÇÃO]" | "Fiscalização Técnica – Contrato 20/2025" |
+| Script ID | `1ms-QRsChJFpfF5WkwFC93MkWDnj3Zv_M_oU9lmXrxZcTuvAmunvY2UuL` | `126JuJAP_a2QBzHJDL-6ObrmRBlgc_iTd69gXioQifkGko6BQipqG0VOq` |
+| Config do clasp | `.clasp.json` (padrão) | `.clasp.producao.json` (sempre com `-P`) |
+| URL de teste (@HEAD) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbwvD2-7WEXAHkvdA1pPUoEqi2vPw9jx48yrds01-IQ/dev | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbzUz9A8WNWziWTH6zvrOUYeA5hbh3xfGWhItbEWpWLD/dev |
+| URL publicada (/exec) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbyJVIpXMdVsZ1wxc8ujmlgjVhT9fGVePivKOjd0Di7-a5ERMQoL6iAOZfO07YMr2IjU/exec (para outras pessoas testarem; atualizar com `clasp deploy -i AKfycbyJVIpXMdVsZ1wxc8ujmlgjVhT9fGVePivKOjd0Di7-a5ERMQoL6iAOZfO07YMr2IjU -d "..."`) | https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ/exec |
+
+Fluxo:
+1. Todo desenvolvimento acontece na branch `homologacao`. `clasp push` (sem `-P`) envia para a homologação. O George testa na URL de homologação. Nela pode haver dados de teste.
+2. Aprovado: `git checkout main` → `git merge homologacao` → atualizar versão/CHANGELOG se ainda não estiver → commit → tag `vX.Y.Z`.
+3. Ainda na `main`: `clasp -P .clasp.producao.json push` e, **só depois de perguntar ao George e ele autorizar**, `clasp -P .clasp.producao.json deploy -i <id da produção> -d "vX.Y.Z – ..."`.
+4. Voltar para a `homologacao` (`git checkout homologacao` e `git merge main` se houver algo novo na main).
+
+Regras:
+- **Nunca** enviar código para a produção (`-P .clasp.producao.json`) fora da branch `main`. Conferir a branch antes (`git branch --show-current`).
+- O app se identifica pelo `ScriptApp.getScriptId()`: fora do script de produção mostra a faixa "AMBIENTE DE HOMOLOGAÇÃO" (`ID_SCRIPT_PRODUCAO` em `src/Code.js`).
+- Dados fictícios só na planilha de homologação. Na produção, só dados reais.
+- Funções de carga (`setup`, `carregar...`) rodam primeiro na homologação; na produção só depois de validadas.
 
 ## Versionamento
 
 - SemVer (`MAIOR.MENOR.CORREÇÃO`). Em construção fica em `0.x`: cada fase concluída sobe a MENOR (Fase 2 = `0.2.0`), cada correção sobe a CORREÇÃO. `1.0.0` = sistema completo em produção.
-- A cada entrega: atualizar `VERSAO_APP` em `src/Code.js` e o `CHANGELOG.md`, fazer commit, criar a tag `vX.Y.Z` e implantar com `clasp deploy -i <id da implantação> -d "vX.Y.Z – ..."`, reaproveitando o mesmo id para a URL `/exec` não mudar.
-- Implantação de produção: `AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ` (v0.1.0 = versão @1 do Apps Script).
-  URL: https://script.google.com/a/macros/tre-ma.jus.br/s/AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ/exec
+- A cada entrega: atualizar `VERSAO_APP` em `src/Code.js` e o `CHANGELOG.md`, fazer commit, criar a tag `vX.Y.Z` (na `main`) e implantar reaproveitando o mesmo id para a URL `/exec` não mudar.
+- Implantação de produção: `AKfycbxepZPdDsd309OMAeWTIWE8wx4xwibnq7CRku46p6l4EIJrHLtmuOfzUYO5HiGlzBvTOQ` (@1 = v0.1.0, @2 = v0.2.0, @3 = v0.3.0).
 
 ## Regras de negócio que nunca podem ser quebradas
 

@@ -66,6 +66,7 @@
     chamar('getContextoInicial')
       .then(function (ctx) {
         App.contexto = ctx;
+        document.getElementById('faixa-ambiente').hidden = !ctx.homologacao;
         document.getElementById('usuario-logado').innerHTML =
           '<strong>' + esc(ctx.nome) + '</strong>' +
           '<span>' + esc(ctx.perfilRotulo) + ' · ' + esc(ctx.condicao) + '</span>' +

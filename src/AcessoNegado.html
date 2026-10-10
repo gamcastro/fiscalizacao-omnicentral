@@ -6,6 +6,9 @@
   <?!= include('Estilos'); ?>
 </head>
 <body class="pagina-aviso">
+  <? if (homologacao) { ?>
+    <div class="faixa-ambiente fixa">AMBIENTE DE HOMOLOGAÇÃO</div>
+  <? } ?>
   <div class="cartao aviso">
     <? if (erro) { ?>
       <h1>Não foi possível abrir o sistema</h1>

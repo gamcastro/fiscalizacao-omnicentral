@@ -27,7 +27,7 @@
         <span id="lan-status" class="etiqueta"></span>
       </div>
       <p id="lan-bloqueio" class="aviso-bloqueio" hidden>
-        Esta competência já foi enviada à COGECON e está bloqueada para edição.
+        Esta competência já foi enviada para pagamento e está bloqueada para edição.
       </p>
       <div class="grade-form">
         <label>Competência (mês/ano)
@@ -86,6 +86,7 @@
     <div class="acoes">
       <button type="button" id="lan-salvar" class="botao primario">Salvar rascunho</button>
       <button type="button" id="lan-enviar" class="botao">Enviar para conferência</button>
+      <button type="button" id="lan-detalhe" class="botao" hidden>Ver detalhe e SEI</button>
       <button type="button" id="lan-voltar" class="botao">Voltar à lista</button>
     </div>
   </form>
@@ -212,6 +213,7 @@
       el('lan-salvar').textContent = rascunho ? 'Salvar rascunho' : 'Salvar alterações';
       el('lan-salvar').hidden = !editavel;
       el('lan-enviar').hidden = !editavel || !rascunho;
+      el('lan-detalhe').hidden = !c;
       el('lan-form').querySelectorAll('input').forEach(function (i) {
         if (!editavel) i.disabled = true; else i.disabled = false;
       });
@@ -330,6 +332,7 @@
 
     el('lan-nova').addEventListener('click', function () { montarFormulario(null); });
     el('lan-voltar').addEventListener('click', function () { limparMensagem(); fecharFormulario(); });
+    el('lan-detalhe').addEventListener('click', function () { irPara('detalhe', { competencia: estado.atual.competencia }); });
     el('lan-salvar').addEventListener('click', function () { salvar(false); });
     el('lan-enviar').addEventListener('click', function () { salvar(true); });
 

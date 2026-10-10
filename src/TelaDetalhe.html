@@ -1,0 +1,218 @@
+<section id="tela-detalhe" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <div class="cabecalho-form">
+      <h1 id="det-titulo">Competência</h1>
+      <span id="det-status" class="etiqueta"></span>
+    </div>
+    <div class="acoes">
+      <button type="button" id="det-editar" class="botao" hidden>Editar lançamento</button>
+      <button type="button" id="det-voltar" class="botao">Voltar ao painel</button>
+    </div>
+  </div>
+
+  <div class="grade-detalhe">
+    <div class="cartao">
+      <h2>Resumo</h2>
+      <table class="tabela">
+        <thead>
+          <tr><th>Item</th><th>Descrição</th><th class="numero">Relatório</th><th class="numero">Medida</th><th>Ajuste</th></tr>
+        </thead>
+        <tbody id="det-itens"></tbody>
+      </table>
+      <p id="det-ans" class="linha-info"></p>
+      <p id="det-pasta" class="linha-info"></p>
+    </div>
+
+    <div class="cartao">
+      <h2>Linha do tempo</h2>
+      <ol id="det-tempo" class="linha-tempo"></ol>
+      <p id="det-ciente" class="linha-info"></p>
+      <button type="button" id="det-btn-ciente" class="botao primario" hidden>Registrar ciente</button>
+    </div>
+  </div>
+
+  <div class="cartao">
+    <h2>Processo SEI</h2>
+    <div class="grade-form" id="det-sei-campos"></div>
+    <div class="acoes">
+      <button type="button" id="det-salvar-sei" class="botao" hidden>Salvar dados do SEI</button>
+      <button type="button" id="det-instruir" class="botao primario" hidden>Iniciar instrução no SEI</button>
+      <button type="button" id="det-enviar" class="botao primario" hidden>Marcar como enviado para pagamento</button>
+    </div>
+    <div id="det-reabrir-bloco" class="bloco-reabrir" hidden>
+      <label>Justificativa para reabrir (vai para o Log)
+        <textarea id="det-justificativa" rows="2"></textarea>
+      </label>
+      <button type="button" id="det-reabrir" class="botao">Reabrir competência</button>
+    </div>
+  </div>
+
+  <div class="cartao">
+    <h2>Textos do SEI</h2>
+    <div id="det-textos-avisos" class="avisos" hidden></div>
+    <div class="grade-textos">
+      <div>
+        <div class="cabecalho-form"><h3>Atesto</h3>
+          <button type="button" class="botao pequeno" data-copiar="det-atesto">Copiar</button></div>
+        <div id="det-atesto" class="documento-sei"></div>
+      </div>
+      <div>
+        <div class="cabecalho-form"><h3>Despacho de encaminhamento</h3>
+          <button type="button" class="botao pequeno" data-copiar="det-despacho">Copiar</button></div>
+        <div id="det-despacho" class="documento-sei"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    let atual = null;
+
+    function rotuloComp(c) { return c.slice(5) + '/' + c.slice(0, 4); }
+    function fmtInt(n) { return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR'); }
+
+    function renderizar(d) {
+      atual = d;
+      const p = d.permissoes;
+      el('det-titulo').textContent = 'Competência ' + rotuloComp(d.competencia);
+      el('det-status').className = 'etiqueta st-' + d.status;
+      el('det-status').textContent = d.statusRotulo;
+      el('det-editar').hidden = !p.editarLancamento;
+
+      // Resumo
+      const medicoes = {};
+      d.medicoes.forEach(function (m) { medicoes[m.item] = m; });
+      el('det-itens').innerHTML = d.itens
+        .filter(function (it) { return it.tipo !== 'EVENTUAL' || medicoes[it.item]; })
+        .map(function (it) {
+          const m = medicoes[it.item] || {};
+          return '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td>' +
+            '<td class="numero">' + (it.tipo === 'CONSUMO' ? fmtInt(m.quantidadeRelatorio) : '—') + '</td>' +
+            '<td class="numero"><strong>' + fmtInt(m.quantidade) + '</strong></td>' +
+            '<td>' + esc(m.ajusteObs || '') + '</td></tr>';
+        }).join('');
+      el('det-ans').innerHTML = '<strong>ANS:</strong> ' + (d.ansUptimePct === null ? 'não informado'
+        : esc(String(d.ansUptimePct).replace('.', ',')) + '% · ' + d.ansMinutos + ' min ' +
+          (d.ansCumprido ? '<span class="etiqueta ok">Cumprido</span>' : '<span class="etiqueta nok">Não cumprido</span>') +
+          (d.ansObs ? ' <span class="dica">(' + esc(d.ansObs) + ')</span>' : ''));
+      el('det-pasta').innerHTML = '<strong>Pasta do Drive:</strong> ' + (d.pastaDrive
+        ? '<a href="' + esc(d.pastaDrive) + '" target="_blank" rel="noopener">abrir pasta</a>' : 'não informada');
+
+      // Linha do tempo e ciente
+      el('det-tempo').innerHTML = d.linhaDoTempo.length
+        ? d.linhaDoTempo.map(function (e) {
+            return '<li><span class="dica">' + esc(formatarDataHora(e.quando)) + ' · ' + esc(e.quem) + '</span>' + esc(e.descricao) + '</li>';
+          }).join('')
+        : '<li class="dica">Sem eventos registrados.</li>';
+      el('det-ciente').innerHTML = d.status === 'ENVIADA_COGECON'
+        ? '<strong>Ciente do gestor:</strong> ' + (d.cienteGestorEm
+            ? esc(d.cienteGestorPor) + ' em ' + esc(formatarDataHora(d.cienteGestorEm)) : 'pendente')
+        : '';
+      el('det-btn-ciente').hidden = !p.ciente;
+
+      // SEI
+      const desabilitado = p.editarSei ? '' : ' disabled';
+      el('det-sei-campos').innerHTML = d.ids.map(function (f) {
+        return '<label>ID do ' + esc(f.rotulo) +
+          '<input type="text" inputmode="numeric" data-campo="' + esc(f.campo) + '" value="' + esc(f.valor) + '"' + desabilitado + '></label>';
+      }).join('') +
+        '<label>Data de envio para pagamento<input type="date" id="det-data-envio" value="' + esc(d.dataEnvioCogecon) + '"' + desabilitado + '></label>';
+      el('det-salvar-sei').hidden = !p.editarSei;
+      el('det-instruir').hidden = !p.iniciarInstrucao;
+      el('det-enviar').hidden = !p.enviarCogecon;
+      el('det-reabrir-bloco').hidden = !p.reabrir;
+      el('det-justificativa').value = '';
+
+      // Textos
+      el('det-atesto').innerHTML = d.textos.atesto.html;
+      el('det-despacho').innerHTML = d.textos.despacho.html;
+      el('det-textos-avisos').hidden = !d.textos.avisos.length;
+      el('det-textos-avisos').innerHTML = '<strong>Atenção</strong><ul>' +
+        d.textos.avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+    }
+
+    function dadosSei() {
+      const ids = {};
+      el('det-sei-campos').querySelectorAll('input[data-campo]').forEach(function (i) { ids[i.dataset.campo] = i.value.trim(); });
+      return { ids: ids, dataEnvioCogecon: el('det-data-envio').value };
+    }
+
+    function ocupado(sim) {
+      document.querySelectorAll('#tela-detalhe button').forEach(function (b) { b.disabled = sim; });
+    }
+
+    function executar(promessa) {
+      ocupado(true);
+      return promessa
+        .then(function (r) { renderizar(r.detalhe); mostrarMensagem(r.mensagem, 'sucesso'); })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); window.scrollTo(0, 0); });
+    }
+
+    function carregar(comp) {
+      limparMensagem();
+      el('det-titulo').textContent = 'Carregando…';
+      ocupado(true);
+      return chamar('getDetalheCompetencia', comp)
+        .then(renderizar)
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    }
+
+    /**
+     * Copia o documento para colar no editor do SEI. Grava na área de transferência o HTML
+     * gerado pelo servidor (com as classes de estilo do SEI), e não o visual desta tela.
+     */
+    function copiar(idDocumento, botao) {
+      const texto = idDocumento === 'det-atesto' ? atual.textos.atesto : atual.textos.despacho;
+      const aoCopiar = function (ev) {
+        ev.clipboardData.setData('text/html', texto.html);
+        ev.clipboardData.setData('text/plain', texto.texto);
+        ev.preventDefault();
+      };
+      document.addEventListener('copy', aoCopiar);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.removeEventListener('copy', aoCopiar);
+      if (ok) {
+        const original = botao.textContent;
+        botao.textContent = 'Copiado ✓';
+        setTimeout(function () { botao.textContent = original; }, 2000);
+      } else {
+        mostrarMensagem('Não foi possível copiar automaticamente. Selecione o texto e use Ctrl+C.', 'erro');
+      }
+    }
+
+    el('det-voltar').addEventListener('click', function () { irPara('painel'); });
+    el('det-editar').addEventListener('click', function () { irPara('lancamento', { competencia: atual.competencia }); });
+    el('det-salvar-sei').addEventListener('click', function () {
+      executar(chamar('salvarDadosSei', atual.competencia, dadosSei()));
+    });
+    el('det-instruir').addEventListener('click', function () {
+      if (!confirm('Passar a competência ' + rotuloComp(atual.competencia) + ' para "Instruindo SEI"?')) return;
+      executar(chamar('avancarStatus', atual.competencia, 'INSTRUINDO_SEI', dadosSei()));
+    });
+    el('det-enviar').addEventListener('click', function () {
+      if (!confirm('Marcar a competência ' + rotuloComp(atual.competencia) + ' como enviado para pagamento? ' +
+          'Depois disso ela fica bloqueada; só o superadmin pode reabrir.')) return;
+      executar(chamar('avancarStatus', atual.competencia, 'ENVIADA_COGECON', dadosSei()));
+    });
+    el('det-reabrir').addEventListener('click', function () {
+      if (!confirm('Reabrir a competência ' + rotuloComp(atual.competencia) + '? Ela volta para "Instruindo SEI" e o ciente do gestor é limpo.')) return;
+      executar(chamar('reabrirCompetencia', atual.competencia, el('det-justificativa').value));
+    });
+    el('det-btn-ciente').addEventListener('click', function () {
+      if (!confirm('Registrar ciente na competência ' + rotuloComp(atual.competencia) + '?')) return;
+      executar(chamar('registrarCiente', atual.competencia));
+    });
+    el('tela-detalhe').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('button[data-copiar]');
+      if (botao) copiar(botao.dataset.copiar, botao);
+    });
+
+    window.TELAS.detalhe = { abrir: function (opcoes) { if (opcoes.competencia) carregar(opcoes.competencia); } };
+  })();
+</script>
