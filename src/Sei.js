@@ -25,7 +25,8 @@ function salvarDadosSei(competencia, dados) {
 }
 
 /**
- * Avança o status: EM_CONFERENCIA → INSTRUINDO_SEI ou INSTRUINDO_SEI → ENVIADA_COGECON.
+ * Avança o status: RASCUNHO → EM_CONFERENCIA, EM_CONFERENCIA → INSTRUINDO_SEI
+ * ou INSTRUINDO_SEI → ENVIADA_COGECON.
  * `dados` (opcional) são os IDs/data da tela, gravados antes da transição.
  */
 function avancarStatus(competencia, destino, dados) {
@@ -35,15 +36,18 @@ function avancarStatus(competencia, destino, dados) {
     const comp = textoCompetencia_(registro.competencia);
     const rotulo = rotuloCompetencia_(comp);
     const origem = String(registro.status);
-    const permitido = (origem === STATUS.EM_CONFERENCIA && destino === STATUS.INSTRUINDO_SEI) ||
+    const permitido = (origem === STATUS.RASCUNHO && destino === STATUS.EM_CONFERENCIA) ||
+      (origem === STATUS.EM_CONFERENCIA && destino === STATUS.INSTRUINDO_SEI) ||
       (origem === STATUS.INSTRUINDO_SEI && destino === STATUS.ENVIADA_COGECON);
     if (!permitido) {
       throw new Error('Não é possível passar a competência ' + rotulo + ' de "' + (STATUS_ROTULOS[origem] || origem) +
         '" para "' + (STATUS_ROTULOS[destino] || destino) + '".');
     }
 
+    if (destino === STATUS.EM_CONFERENCIA) exigirLancamentoCompleto_(registro, comp);
+
     const logs = [];
-    if (dados) aplicarDadosSei_(registro, dados, autor, logs);
+    if (dados && destino !== STATUS.EM_CONFERENCIA) aplicarDadosSei_(registro, dados, autor, logs);
 
     if (destino === STATUS.ENVIADA_COGECON) {
       const faltando = CAMPOS_IDS_SEI.filter(function (f) { return String(registro[f.campo] || '').trim() === ''; });
@@ -92,6 +96,23 @@ function buscarCompetenciaObrigatoria_(competencia) {
   const registro = buscarCompetencia_(comp);
   if (!registro) throw new Error('Competência ' + rotuloCompetencia_(comp) + ' não encontrada.');
   return registro;
+}
+
+/** Para enviar à conferência: itens fixos e de consumo lançados e ANS informado. */
+function exigirLancamentoCompleto_(registro, comp) {
+  const lancados = {};
+  medicoesDa_(comp).forEach(function (m) {
+    if (m.quantidade !== '' && m.quantidade !== null) lancados[Number(m.item)] = true;
+  });
+  const faltando = listarItens_()
+    .filter(function (it) { return it.tipo !== 'EVENTUAL' && !lancados[it.item]; })
+    .map(function (it) { return it.item; });
+  const erros = [];
+  if (faltando.length) erros.push('Faltam as quantidades dos itens ' + faltando.join(', ') + '.');
+  if (registro.ansUptimePct === '' || registro.ansUptimePct === null) erros.push('Falta o uptime do ANS.');
+  if (erros.length) {
+    throw new Error(erros.join('\n') + '\nUse "Editar lançamento" para completar antes de enviar para conferência.');
+  }
 }
 
 function exigirEditavel_(registro) {
@@ -168,6 +189,7 @@ function detalheCompetencia_(registro, usuario) {
   c.permissoes = {
     editarLancamento: ehFiscal && status !== STATUS.ENVIADA_COGECON,
     editarSei: ehFiscal && status !== STATUS.ENVIADA_COGECON,
+    enviarConferencia: ehFiscal && status === STATUS.RASCUNHO,
     iniciarInstrucao: ehFiscal && status === STATUS.EM_CONFERENCIA,
     enviarCogecon: ehFiscal && status === STATUS.INSTRUINDO_SEI,
     reabrir: ehSuperadmin && status === STATUS.ENVIADA_COGECON

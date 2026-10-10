@@ -34,6 +34,7 @@
     <div class="grade-form" id="det-sei-campos"></div>
     <div class="acoes">
       <button type="button" id="det-salvar-sei" class="botao" hidden>Salvar dados do SEI</button>
+      <button type="button" id="det-conferencia" class="botao primario" hidden>Enviar para conferência</button>
       <button type="button" id="det-instruir" class="botao primario" hidden>Iniciar instrução no SEI</button>
       <button type="button" id="det-enviar" class="botao primario" hidden>Marcar como enviado para pagamento</button>
     </div>
@@ -114,6 +115,7 @@
       }).join('') +
         '<label>Data de envio para pagamento<input type="date" id="det-data-envio" value="' + esc(d.dataEnvioCogecon) + '"' + desabilitado + '></label>';
       el('det-salvar-sei').hidden = !p.editarSei;
+      el('det-conferencia').hidden = !p.enviarConferencia;
       el('det-instruir').hidden = !p.iniciarInstrucao;
       el('det-enviar').hidden = !p.enviarCogecon;
       el('det-reabrir-bloco').hidden = !p.reabrir;
@@ -183,6 +185,10 @@
     el('det-editar').addEventListener('click', function () { irPara('lancamento', { competencia: atual.competencia }); });
     el('det-salvar-sei').addEventListener('click', function () {
       executar(chamar('salvarDadosSei', atual.competencia, dadosSei()));
+    });
+    el('det-conferencia').addEventListener('click', function () {
+      if (!confirm('Enviar a competência ' + rotuloComp(atual.competencia) + ' para conferência?')) return;
+      executar(chamar('avancarStatus', atual.competencia, 'EM_CONFERENCIA'));
     });
     el('det-instruir').addEventListener('click', function () {
       if (!confirm('Passar a competência ' + rotuloComp(atual.competencia) + ' para "Instruindo SEI"?')) return;
