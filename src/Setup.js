@@ -32,6 +32,10 @@ const DADOS_INICIAIS = {
     { chave: 'ANS_PERCENTUAL', valor: 99.741, descricao: 'Referência do TR' },
     { chave: 'ALERTA_SALDO', valor: 0.8, descricao: '80%' },
     { chave: 'SEI_PAGAMENTO', valor: '0006617-02.2025.6.27.8000', descricao: '' },
+    {
+      chave: 'UNIDADE_PAGAMENTO', valor: 'ASGEC',
+      descricao: 'Unidade destinatária do despacho de pagamento (ASGEC desde a competência 09/2026; antes, COGECON)'
+    },
     { chave: 'FISCAL_TECNICO_ASSINATURA', valor: 'George André Melo Castro', descricao: 'Nome no rodapé do atesto e do despacho' }
   ],
   Itens: [

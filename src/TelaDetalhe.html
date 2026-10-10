@@ -37,7 +37,7 @@
     <div class="acoes">
       <button type="button" id="det-salvar-sei" class="botao" hidden>Salvar dados do SEI</button>
       <button type="button" id="det-instruir" class="botao primario" hidden>Iniciar instrução no SEI</button>
-      <button type="button" id="det-enviar" class="botao primario" hidden>Marcar como enviada à COGECON</button>
+      <button type="button" id="det-enviar" class="botao primario" hidden>Marcar como enviado para pagamento</button>
     </div>
     <div id="det-reabrir-bloco" class="bloco-reabrir" hidden>
       <label>Justificativa para reabrir (vai para o Log)
@@ -57,7 +57,7 @@
         <div id="det-atesto" class="documento-sei"></div>
       </div>
       <div>
-        <div class="cabecalho-form"><h3>Despacho à COGECON</h3>
+        <div class="cabecalho-form"><h3>Despacho de encaminhamento</h3>
           <button type="button" class="botao pequeno" data-copiar="det-despacho">Copiar</button></div>
         <div id="det-despacho" class="documento-sei"></div>
       </div>
@@ -119,7 +119,7 @@
         return '<label>ID do ' + esc(f.rotulo) +
           '<input type="text" inputmode="numeric" data-campo="' + esc(f.campo) + '" value="' + esc(f.valor) + '"' + desabilitado + '></label>';
       }).join('') +
-        '<label>Data de envio à COGECON<input type="date" id="det-data-envio" value="' + esc(d.dataEnvioCogecon) + '"' + desabilitado + '></label>';
+        '<label>Data de envio para pagamento<input type="date" id="det-data-envio" value="' + esc(d.dataEnvioCogecon) + '"' + desabilitado + '></label>';
       el('det-salvar-sei').hidden = !p.editarSei;
       el('det-instruir').hidden = !p.iniciarInstrucao;
       el('det-enviar').hidden = !p.enviarCogecon;
@@ -196,7 +196,7 @@
       executar(chamar('avancarStatus', atual.competencia, 'INSTRUINDO_SEI', dadosSei()));
     });
     el('det-enviar').addEventListener('click', function () {
-      if (!confirm('Marcar a competência ' + rotuloComp(atual.competencia) + ' como enviada à COGECON? ' +
+      if (!confirm('Marcar a competência ' + rotuloComp(atual.competencia) + ' como enviado para pagamento? ' +
           'Depois disso ela fica bloqueada; só o superadmin pode reabrir.')) return;
       executar(chamar('avancarStatus', atual.competencia, 'ENVIADA_COGECON', dadosSei()));
     });

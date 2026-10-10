@@ -14,7 +14,7 @@ const STATUS_ROTULOS = {
   RASCUNHO: 'Rascunho',
   EM_CONFERENCIA: 'Em conferência',
   INSTRUINDO_SEI: 'Instruindo SEI',
-  ENVIADA_COGECON: 'Enviada à COGECON'
+  ENVIADA_COGECON: 'Enviado para pagamento'
 };
 
 /* ---------- Funções chamadas pelo front-end ---------- */
@@ -61,7 +61,7 @@ function salvarCompetencia(dados, enviarConferencia) {
     }
     if (dados.novo !== true && !existente) throw new Error('Competência ' + rotulo + ' não encontrada.');
     if (existente && existente.status === STATUS.ENVIADA_COGECON) {
-      throw new Error('A competência ' + rotulo + ' já foi enviada à COGECON e está bloqueada para edição.');
+      throw new Error('A competência ' + rotulo + ' já foi enviada para pagamento e está bloqueada para edição.');
     }
     if (enviar && existente && existente.status !== STATUS.RASCUNHO) {
       throw new Error('A competência ' + rotulo + ' já foi enviada para conferência.');

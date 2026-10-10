@@ -50,7 +50,7 @@ function avancarStatus(competencia, destino, dados) {
       if (faltando.length) {
         erros.push('Preencha os IDs do SEI que faltam: ' + faltando.map(function (f) { return f.rotulo; }).join(', ') + '.');
       }
-      if (!(registro.dataEnvioCogecon instanceof Date)) erros.push('Informe a data de envio à COGECON.');
+      if (!(registro.dataEnvioCogecon instanceof Date)) erros.push('Informe a data de envio para pagamento.');
       if (erros.length) throw new Error(erros.join('\n'));
     }
 
@@ -71,7 +71,7 @@ function reabrirCompetencia(competencia, justificativa) {
     const registro = buscarCompetenciaObrigatoria_(competencia);
     const comp = textoCompetencia_(registro.competencia);
     if (registro.status !== STATUS.ENVIADA_COGECON) {
-      throw new Error('Só uma competência enviada à COGECON pode ser reaberta.');
+      throw new Error('Só uma competência enviada para pagamento pode ser reaberta.');
     }
     const antes = selecionar_(registro, ['status', 'cienteGestorPor', 'cienteGestorEm']);
     const alteracoes = {
@@ -87,7 +87,7 @@ function reabrirCompetencia(competencia, justificativa) {
   });
 }
 
-/** Gestor: registra ciência de uma competência enviada à COGECON. */
+/** Gestor: registra ciência de uma competência enviada para pagamento. */
 function registrarCiente(competencia) {
   const autor = requirePerfil_([PERFIS.GESTOR]);
   if (autor.perfil !== PERFIS.GESTOR) throw new Error('Só o perfil Gestor pode registrar ciente.');
@@ -95,7 +95,7 @@ function registrarCiente(competencia) {
     const registro = buscarCompetenciaObrigatoria_(competencia);
     const comp = textoCompetencia_(registro.competencia);
     if (registro.status !== STATUS.ENVIADA_COGECON) {
-      throw new Error('O ciente só pode ser registrado em competência enviada à COGECON.');
+      throw new Error('O ciente só pode ser registrado em competência enviada para pagamento.');
     }
     if (registro.cienteGestorEm instanceof Date) {
       throw new Error('O ciente desta competência já foi registrado por ' + registro.cienteGestorPor + '.');
@@ -121,7 +121,7 @@ function buscarCompetenciaObrigatoria_(competencia) {
 function exigirEditavel_(registro) {
   if (registro.status === STATUS.ENVIADA_COGECON) {
     throw new Error('A competência ' + rotuloCompetencia_(textoCompetencia_(registro.competencia)) +
-      ' já foi enviada à COGECON e está bloqueada. Só o superadmin pode reabri-la.');
+      ' já foi enviada para pagamento e está bloqueada. Só o superadmin pode reabri-la.');
   }
 }
 

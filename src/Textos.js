@@ -105,8 +105,14 @@ function gerarTextosSei_(registro, medicoes, itens, config) {
     paragrafoSei_('Texto_Justificado', 'justify', escaparHtml_(fraseAns)) +
     paragrafoSei_('Texto_Centralizado', 'center', escaparHtml_(assinatura) + '<br>' + escaparHtml_(rodapeAtesto));
 
+  // Unidade que recebe o processo de pagamento (ASGEC desde a competência 09/2026).
+  let unidadePagamento = String(config.UNIDADE_PAGAMENTO || '').trim();
+  if (!unidadePagamento) {
+    unidadePagamento = '[UNIDADE_PAGAMENTO]';
+    avisos.push('Falta a chave UNIDADE_PAGAMENTO na aba Config: o despacho mostra um marcador no lugar da unidade.');
+  }
   const despachoParagrafos = [
-    'À COGECON,',
+    'À ' + unidadePagamento + ',',
     'Encaminho o processo para prosseguimento da análise e pagamento referente ao Contrato nº ' + contrato +
       ' (OMNICENTRAL), para a competência de ' + dataInicio + ' a ' + dataFim + '.',
     'Para este fim, foram incluídos os Relatórios de Fiscalização e o Atesto de Recebimento de Serviços, conforme identificadores abaixo:'
