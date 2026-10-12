@@ -15,7 +15,7 @@ function ehHomologacao_() {
 }
 
 /** Versão do sistema (SemVer). Atualizar junto com o CHANGELOG.md a cada entrega. */
-const VERSAO_APP = '0.5.0';
+const VERSAO_APP = '0.7.0';
 
 function doGet() {
   try {
@@ -54,7 +54,8 @@ function menu_() {
     { id: 'painel', rotulo: 'Painel', perfis: TODOS_PERFIS },
     { id: 'lancamento', rotulo: 'Lançar competência', perfis: [PERFIS.FISCAL_TECNICO] },
     { id: 'historico', rotulo: 'Histórico', perfis: TODOS_PERFIS },
-    { id: 'usuarios', rotulo: 'Usuários', perfis: [PERFIS.SUPERADMIN] }
+    { id: 'usuarios', rotulo: 'Usuários', perfis: [PERFIS.SUPERADMIN] },
+    { id: 'configuracoes', rotulo: 'Configurações', perfis: [PERFIS.SUPERADMIN] }
   ];
 }
 

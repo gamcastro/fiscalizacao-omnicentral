@@ -112,6 +112,16 @@ function atualizar_(nome, linha, alteracoes) {
 }
 
 /**
+ * Exclui linhas de uma aba (da maior para a menor, para os números não mudarem).
+ * Uso restrito a dados de configuração (feriados, vigências, quantidades), sempre com Log.
+ * Competências e medições nunca são excluídas na produção.
+ */
+function excluirLinhas_(nome, linhas) {
+  const sh = getAba_(nome);
+  linhas.slice().sort(function (a, b) { return b - a; }).forEach(function (n) { sh.deleteRow(n); });
+}
+
+/**
  * Prepara um valor para gravação. Textos recebem apóstrofo para a planilha
  * não convertê-los (ex.: "20/2025" virar data ou "=..." virar fórmula).
  */

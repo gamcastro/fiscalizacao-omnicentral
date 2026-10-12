@@ -3,6 +3,28 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.7.0] – 10/10/2026 – Tela de Configurações
+
+### Incluído
+- Tela "Configurações" (somente SUPERADMIN, conferido no servidor), com abas:
+  - **Parâmetros**: edição da aba `Config` com validação por campo (CNPJ, processo SEI, vigência atual, limite do ANS, alerta de saldo em %, unidade de pagamento, assinatura, lista de e-mails do lembrete só @tre-ma.jus.br).
+  - **Feriados**: incluir, corrigir e excluir, com filtro por ano.
+  - **Vigências e quantidades**: cadastrar, editar e excluir vigências com as quantidades contratadas dos itens 1 a 9. Bloqueios: sem sobreposição de períodos, competências não podem ficar fora do período, não exclui a vigência atual, com competências ou com preços.
+  - **Lembrete por e-mail**: ligar/desligar o gatilho diário (bloqueado na homologação) e enviar e-mail de teste.
+  - **Preços de referência**: somente consulta.
+- Ação `EXCLUIR` no `Log` para feriados, vigências e quantidades (configuração). Competências e medições continuam sem exclusão.
+
+## [0.6.0] – 10/10/2026 – Fase 5B: Lembrete por e-mail
+
+### Incluído
+- Gatilho diário (8h) `verificarLembretesDiarios()`: em dia útil, envia e-mail no 1º dia útil do mês (início da competência anterior, com checklist) e depois do prazo de 10 dias úteis sem os 4 documentos SEI. Inclui as pendências do painel e o link do app. Cada aviso é enviado uma vez (registro `LEMBRETE` no `Log`).
+- Nova chave `EMAILS_LEMBRETE` na aba `Config` (incluída pelo `setup()`), com os destinatários separados por ";".
+- `instalarLembreteDiario()` / `removerLembreteDiario()` (superadmin; instalação só na produção) e `testarLembrete()` (envia só para quem executa, sem gravar no Log).
+- Na homologação, qualquer e-mail vai só para quem executa, com "[HOMOLOGAÇÃO]" no assunto.
+
+### Alterado
+- Novas permissões: enviar e-mail e gerenciar gatilhos (é preciso autorizar de novo em cada ambiente).
+
 ## [0.5.0] – 10/10/2026 – Fase 5A: Histórico e CSV
 
 ### Incluído

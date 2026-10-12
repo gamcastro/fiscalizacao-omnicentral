@@ -1,0 +1,385 @@
+<section id="tela-configuracoes" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <h1>Configurações</h1>
+  </div>
+
+  <nav class="abas-config" id="cfg-abas">
+    <button type="button" data-aba="parametros" class="ativa">Parâmetros</button>
+    <button type="button" data-aba="feriados">Feriados</button>
+    <button type="button" data-aba="vigencias">Vigências e quantidades</button>
+    <button type="button" data-aba="lembrete">Lembrete por e-mail</button>
+    <button type="button" data-aba="precos">Preços de referência</button>
+  </nav>
+
+  <!-- Parâmetros -->
+  <div class="cartao cfg-painel" data-painel="parametros">
+    <p class="dica">Cada campo é salvo separadamente e a alteração fica registrada no Log.</p>
+    <div id="cfg-parametros"></div>
+  </div>
+
+  <!-- Feriados -->
+  <div class="cartao cfg-painel" data-painel="feriados" hidden>
+    <form id="cfg-fer-form" class="grade-form" autocomplete="off">
+      <label>Data<input type="date" id="cfg-fer-data"></label>
+      <label class="largo">Descrição<input type="text" id="cfg-fer-desc" placeholder="ex.: Nossa Senhora Aparecida – Portaria TRE-MA nº 10/2026"></label>
+      <div class="acoes acoes-form">
+        <button type="submit" id="cfg-fer-salvar" class="botao primario">Incluir feriado</button>
+        <button type="button" id="cfg-fer-cancelar" class="botao" hidden>Cancelar edição</button>
+      </div>
+    </form>
+    <div class="cabecalho-form">
+      <h2>Feriados cadastrados</h2>
+      <label class="filtro">Ano <select id="cfg-fer-ano"></select></label>
+    </div>
+    <table class="tabela">
+      <thead><tr><th>Data</th><th>Dia</th><th>Descrição</th><th></th></tr></thead>
+      <tbody id="cfg-fer-lista"></tbody>
+    </table>
+  </div>
+
+  <!-- Vigências -->
+  <div class="cartao cfg-painel" data-painel="vigencias" hidden>
+    <div class="cabecalho-form">
+      <h2>Vigências</h2>
+      <button type="button" id="cfg-vig-nova" class="botao primario">Nova vigência</button>
+    </div>
+    <table class="tabela">
+      <thead><tr><th>Id</th><th>Período</th><th>Documento</th><th>Competências</th><th></th></tr></thead>
+      <tbody id="cfg-vig-lista"></tbody>
+    </table>
+
+    <form id="cfg-vig-form" class="bloco-form" autocomplete="off" hidden>
+      <h2 id="cfg-vig-titulo">Nova vigência</h2>
+      <div class="grade-form">
+        <label>Identificador<input type="text" id="cfg-vig-id" placeholder="ex.: V2027"></label>
+        <label>Início<input type="date" id="cfg-vig-inicio"></label>
+        <label>Fim<input type="date" id="cfg-vig-fim"></label>
+        <label class="largo">Documento<input type="text" id="cfg-vig-doc" placeholder="ex.: 3º Termo Aditivo (SEI 0000000)"></label>
+        <label class="largo">Observação<input type="text" id="cfg-vig-obs"></label>
+      </div>
+      <h3>Quantidades contratadas na vigência</h3>
+      <table class="tabela tabela-itens">
+        <thead><tr><th>Item</th><th>Descrição</th><th>Unidade</th><th>Quantidade</th></tr></thead>
+        <tbody id="cfg-vig-qtds"></tbody>
+      </table>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar vigência</button>
+        <button type="button" id="cfg-vig-cancelar" class="botao">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Lembrete -->
+  <div class="cartao cfg-painel" data-painel="lembrete" hidden>
+    <p id="cfg-lem-status"></p>
+    <p class="dica">O gatilho roda todos os dias às 8h e só envia e-mail em dia útil: no 1º dia útil do mês
+      (início da competência anterior) e quando vencer o prazo dos documentos SEI. Os destinatários ficam em
+      Parâmetros → "E-mails que recebem o lembrete".</p>
+    <div class="acoes">
+      <button type="button" id="cfg-lem-ligar" class="botao primario" hidden>Ligar lembrete diário</button>
+      <button type="button" id="cfg-lem-desligar" class="botao" hidden>Desligar lembrete diário</button>
+      <button type="button" id="cfg-lem-teste" class="botao">Enviar e-mail de teste para mim</button>
+    </div>
+  </div>
+
+  <!-- Preços -->
+  <div class="cartao cfg-painel" data-painel="precos" hidden>
+    <p class="aviso-bloqueio">Somente consulta. Os preços não são usados em nenhum cálculo, validação, painel ou texto do SEI.</p>
+    <table class="tabela">
+      <thead><tr><th>Vigência</th><th>Item</th><th>Descrição</th><th class="numero">Valor unitário</th><th>Documento</th></tr></thead>
+      <tbody id="cfg-precos"></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    const estado = { dados: null, emails: [], feriadoEditando: '', vigenciaEditando: null, ano: '' };
+    const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+
+    function dataBr(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+    function fmtInt(n) { return Number(n).toLocaleString('pt-BR'); }
+
+    function ocupado(sim) {
+      document.querySelectorAll('#tela-configuracoes button').forEach(function (b) {
+        b.disabled = sim || b.dataset.bloqueado === '1';
+      });
+    }
+
+    /** Chama o servidor, mostra a mensagem e redesenha com as configurações devolvidas. */
+    function executar(nomeFuncao) {
+      const args = Array.prototype.slice.call(arguments, 1);
+      ocupado(true);
+      return chamar.apply(null, [nomeFuncao].concat(args))
+        .then(function (r) {
+          if (r && r.configuracoes) { estado.dados = r.configuracoes; renderizar(); }
+          mostrarMensagem(r && r.mensagem ? r.mensagem : String(r), 'sucesso');
+          return true;
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); return false; })
+        .then(function (ok) { ocupado(false); window.scrollTo(0, 0); return ok; });
+    }
+
+    function carregar() {
+      el('cfg-parametros').innerHTML = '<p class="vazio">Carregando…</p>';
+      return chamar('getConfiguracoes')
+        .then(function (r) { estado.dados = r; renderizar(); })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); });
+    }
+
+    function renderizar() {
+      renderizarParametros();
+      renderizarFeriados();
+      renderizarVigencias();
+      renderizarLembrete();
+      renderizarPrecos();
+    }
+
+    /* ---------- Parâmetros ---------- */
+
+    function controle(p) {
+      const v = esc(p.valor);
+      switch (p.tipo) {
+        case 'textoLongo':
+          return '<textarea data-param="' + esc(p.chave) + '" rows="3">' + v + '</textarea>';
+        case 'vigencia':
+          return '<select data-param="' + esc(p.chave) + '">' + estado.dados.vigencias.map(function (vig) {
+            return '<option value="' + esc(vig.id) + '"' + (vig.id === p.valor ? ' selected' : '') + '>' +
+              esc(vig.id + ' · ' + dataBr(vig.inicio) + ' a ' + dataBr(vig.fim)) + '</option>';
+          }).join('') + '</select>';
+        case 'percentual':
+          return '<span class="com-sufixo"><input type="text" inputmode="decimal" data-param="' + esc(p.chave) + '" value="' + v + '"> %</span>';
+        case 'emails':
+          return '<div class="lista-emails">' + estado.emails.map(function (e) {
+              return '<span class="chip">' + esc(e) + ' <button type="button" class="chip-x" data-remover-email="' + esc(e) + '" title="Remover">×</button></span>';
+            }).join('') + '</div>' +
+            '<span class="com-sufixo"><input type="email" id="cfg-novo-email" placeholder="nome@tre-ma.jus.br">' +
+            '<button type="button" class="botao pequeno" id="cfg-add-email">Adicionar</button></span>';
+        default:
+          return '<input type="text" data-param="' + esc(p.chave) + '" value="' + v + '">';
+      }
+    }
+
+    function renderizarParametros() {
+      const emailsParam = estado.dados.parametros.find(function (p) { return p.tipo === 'emails'; });
+      estado.emails = emailsParam ? emailsParam.valor.slice() : [];
+      el('cfg-parametros').innerHTML = estado.dados.parametros.map(function (p) {
+        return '<div class="cfg-linha">' +
+          '<div class="cfg-rotulo"><strong>' + esc(p.rotulo) + '</strong>' +
+            (p.dica ? '<span class="dica bloco">' + esc(p.dica) + '</span>' : '') +
+            (p.descricao && p.descricao !== p.dica ? '<span class="dica bloco">' + esc(p.descricao) + '</span>' : '') + '</div>' +
+          '<div class="cfg-controle">' + controle(p) + '</div>' +
+          '<div><button type="button" class="botao pequeno" data-salvar-param="' + esc(p.chave) + '">Salvar</button></div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function adicionarEmail() {
+      const campo = el('cfg-novo-email');
+      const email = campo.value.trim().toLowerCase();
+      if (!email) return;
+      if (!/^[a-z0-9._%+-]+@tre-ma\.jus\.br$/.test(email)) {
+        mostrarMensagem('Só são aceitos e-mails @tre-ma.jus.br.', 'erro');
+        return;
+      }
+      if (estado.emails.indexOf(email) < 0) estado.emails.push(email);
+      redesenharEmails();
+    }
+
+    function redesenharEmails() {
+      const p = estado.dados.parametros.find(function (x) { return x.tipo === 'emails'; });
+      const linha = document.querySelector('[data-salvar-param="' + p.chave + '"]').closest('.cfg-linha');
+      linha.querySelector('.cfg-controle').innerHTML = controle(p);
+    }
+
+    el('cfg-parametros').addEventListener('click', function (ev) {
+      const salvar = ev.target.closest('[data-salvar-param]');
+      const remover = ev.target.closest('[data-remover-email]');
+      if (ev.target.id === 'cfg-add-email') { adicionarEmail(); return; }
+      if (remover) {
+        estado.emails = estado.emails.filter(function (e) { return e !== remover.dataset.removerEmail; });
+        redesenharEmails();
+        return;
+      }
+      if (!salvar) return;
+      const chave = salvar.dataset.salvarParam;
+      const p = estado.dados.parametros.find(function (x) { return x.chave === chave; });
+      let valor;
+      if (p.tipo === 'emails') {
+        if (el('cfg-novo-email').value.trim()) adicionarEmail();
+        valor = estado.emails;
+      } else {
+        valor = document.querySelector('[data-param="' + chave + '"]').value;
+      }
+      executar('salvarParametro', chave, valor);
+    });
+    el('cfg-parametros').addEventListener('keydown', function (ev) {
+      if (ev.target.id === 'cfg-novo-email' && ev.key === 'Enter') { ev.preventDefault(); adicionarEmail(); }
+    });
+
+    /* ---------- Feriados ---------- */
+
+    function renderizarFeriados() {
+      const anos = {};
+      const anoAtual = String(new Date().getFullYear());
+      anos[anoAtual] = true;
+      estado.dados.feriados.forEach(function (f) { anos[f.data.slice(0, 4)] = true; });
+      const lista = Object.keys(anos).sort();
+      if (!estado.ano || lista.indexOf(estado.ano) < 0) estado.ano = anoAtual;
+      el('cfg-fer-ano').innerHTML = lista.map(function (a) {
+        return '<option' + (a === estado.ano ? ' selected' : '') + '>' + a + '</option>';
+      }).join('');
+      const doAno = estado.dados.feriados.filter(function (f) { return f.data.slice(0, 4) === estado.ano; });
+      el('cfg-fer-lista').innerHTML = doAno.length
+        ? doAno.map(function (f) {
+            const semana = SEMANA[new Date(f.data + 'T12:00:00').getDay()];
+            return '<tr><td>' + esc(dataBr(f.data)) + '</td><td class="dica">' + semana + '</td><td>' + esc(f.descricao) + '</td>' +
+              '<td class="acoes-linha"><button type="button" class="botao pequeno" data-editar-feriado="' + esc(f.data) + '">Editar</button> ' +
+              '<button type="button" class="botao pequeno" data-excluir-feriado="' + esc(f.data) + '">Excluir</button></td></tr>';
+          }).join('')
+        : '<tr><td colspan="4" class="vazio">Nenhum feriado cadastrado em ' + esc(estado.ano) + '.</td></tr>';
+      limparFormFeriado();
+    }
+
+    function limparFormFeriado() {
+      estado.feriadoEditando = '';
+      el('cfg-fer-data').value = '';
+      el('cfg-fer-desc').value = '';
+      el('cfg-fer-salvar').textContent = 'Incluir feriado';
+      el('cfg-fer-cancelar').hidden = true;
+    }
+
+    el('cfg-fer-ano').addEventListener('change', function () { estado.ano = el('cfg-fer-ano').value; renderizarFeriados(); });
+    el('cfg-fer-cancelar').addEventListener('click', limparFormFeriado);
+    el('cfg-fer-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const ano = el('cfg-fer-data').value.slice(0, 4);
+      executar('salvarFeriado', {
+        dataOriginal: estado.feriadoEditando, data: el('cfg-fer-data').value, descricao: el('cfg-fer-desc').value
+      }).then(function (ok) { if (ok && ano) { estado.ano = ano; renderizarFeriados(); } });
+    });
+    el('cfg-fer-lista').addEventListener('click', function (ev) {
+      const editar = ev.target.closest('[data-editar-feriado]');
+      const excluir = ev.target.closest('[data-excluir-feriado]');
+      if (editar) {
+        const f = estado.dados.feriados.find(function (x) { return x.data === editar.dataset.editarFeriado; });
+        estado.feriadoEditando = f.data;
+        el('cfg-fer-data').value = f.data;
+        el('cfg-fer-desc').value = f.descricao;
+        el('cfg-fer-salvar').textContent = 'Salvar alteração';
+        el('cfg-fer-cancelar').hidden = false;
+        el('cfg-fer-desc').focus();
+      } else if (excluir) {
+        const data = excluir.dataset.excluirFeriado;
+        if (confirm('Excluir o feriado de ' + dataBr(data) + '? A exclusão fica registrada no Log.')) executar('excluirFeriado', data);
+      }
+    });
+
+    /* ---------- Vigências ---------- */
+
+    function renderizarVigencias() {
+      el('cfg-vig-lista').innerHTML = estado.dados.vigencias.map(function (v) {
+        const bloqueio = v.atual ? 'É a vigência atual' : v.competencias ? 'Tem competências lançadas'
+          : v.temPrecos ? 'Tem preços de referência' : '';
+        return '<tr><td><strong>' + esc(v.id) + '</strong>' + (v.atual ? ' <span class="etiqueta ok">atual</span>' : '') + '</td>' +
+          '<td>' + esc(dataBr(v.inicio) + ' a ' + dataBr(v.fim)) + '</td>' +
+          '<td>' + esc(v.documento) + (v.observacao ? '<span class="dica bloco">' + esc(v.observacao) + '</span>' : '') + '</td>' +
+          '<td>' + v.competencias + '</td>' +
+          '<td class="acoes-linha"><button type="button" class="botao pequeno" data-editar-vig="' + esc(v.id) + '">Editar</button> ' +
+          '<button type="button" class="botao pequeno" data-excluir-vig="' + esc(v.id) + '"' +
+            (bloqueio ? ' disabled data-bloqueado="1" title="Não pode ser excluída: ' + esc(bloqueio) + '"' : '') + '>Excluir</button></td></tr>';
+      }).join('') || '<tr><td colspan="5" class="vazio">Nenhuma vigência cadastrada.</td></tr>';
+      el('cfg-vig-form').hidden = true;
+    }
+
+    function abrirFormVigencia(v) {
+      estado.vigenciaEditando = v || null;
+      el('cfg-vig-titulo').textContent = v ? 'Editar vigência ' + v.id : 'Nova vigência';
+      el('cfg-vig-id').value = v ? v.id : '';
+      el('cfg-vig-id').readOnly = !!v;
+      el('cfg-vig-inicio').value = v ? v.inicio : '';
+      el('cfg-vig-fim').value = v ? v.fim : '';
+      el('cfg-vig-doc').value = v ? v.documento : '';
+      el('cfg-vig-obs').value = v ? v.observacao : '';
+      el('cfg-vig-qtds').innerHTML = estado.dados.itens.map(function (it) {
+        const q = v && v.quantidades[it.item] !== undefined ? v.quantidades[it.item] : '';
+        return '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td><td>' + esc(it.unidade) + '</td>' +
+          '<td><input type="text" inputmode="numeric" class="lan-qtd" data-qtd-item="' + it.item + '" value="' + esc(q === '' ? '' : fmtInt(q)) + '"></td></tr>';
+      }).join('');
+      el('cfg-vig-form').hidden = false;
+      el('cfg-vig-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    el('cfg-vig-nova').addEventListener('click', function () { abrirFormVigencia(null); });
+    el('cfg-vig-cancelar').addEventListener('click', function () { el('cfg-vig-form').hidden = true; });
+    el('cfg-vig-lista').addEventListener('click', function (ev) {
+      const editar = ev.target.closest('[data-editar-vig]');
+      const excluir = ev.target.closest('[data-excluir-vig]');
+      if (editar) {
+        abrirFormVigencia(estado.dados.vigencias.find(function (v) { return v.id === editar.dataset.editarVig; }));
+      } else if (excluir && confirm('Excluir a vigência ' + excluir.dataset.excluirVig + ' e suas quantidades contratadas? A exclusão fica registrada no Log.')) {
+        executar('excluirVigencia', excluir.dataset.excluirVig);
+      }
+    });
+    el('cfg-vig-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const quantidades = {};
+      el('cfg-vig-qtds').querySelectorAll('[data-qtd-item]').forEach(function (i) { quantidades[i.dataset.qtdItem] = i.value.trim(); });
+      executar('salvarVigencia', {
+        novo: !estado.vigenciaEditando,
+        id: el('cfg-vig-id').value,
+        inicio: el('cfg-vig-inicio').value,
+        fim: el('cfg-vig-fim').value,
+        documento: el('cfg-vig-doc').value,
+        observacao: el('cfg-vig-obs').value,
+        quantidades: quantidades
+      });
+    });
+
+    /* ---------- Lembrete ---------- */
+
+    function renderizarLembrete() {
+      const l = estado.dados.lembrete;
+      el('cfg-lem-status').innerHTML = '<strong>Lembrete diário:</strong> ' +
+        (l.ativo ? '<span class="etiqueta ok">Ligado</span>' : '<span class="etiqueta off">Desligado</span>') +
+        (l.homologacao ? ' <span class="dica">(na homologação o lembrete não pode ser ligado; use o e-mail de teste)</span>' : '');
+      el('cfg-lem-ligar').hidden = l.ativo || l.homologacao;
+      el('cfg-lem-desligar').hidden = !l.ativo;
+    }
+
+    function executarLembrete(funcao) {
+      executar(funcao).then(function (ok) { if (ok) carregar(); });
+    }
+    el('cfg-lem-ligar').addEventListener('click', function () { executarLembrete('instalarLembreteDiario'); });
+    el('cfg-lem-desligar').addEventListener('click', function () {
+      if (confirm('Desligar o lembrete diário por e-mail?')) executarLembrete('removerLembreteDiario');
+    });
+    el('cfg-lem-teste').addEventListener('click', function () { executar('testarLembrete'); });
+
+    /* ---------- Preços ---------- */
+
+    function renderizarPrecos() {
+      const desc = {};
+      estado.dados.itens.forEach(function (it) { desc[it.item] = it.descricao; });
+      el('cfg-precos').innerHTML = estado.dados.precos.map(function (p) {
+        return '<tr><td>' + esc(p.vigencia) + '</td><td>' + p.item + '</td><td>' + esc(desc[p.item] || '') + '</td>' +
+          '<td class="numero">' + esc(p.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 8 })) + '</td>' +
+          '<td>' + esc(p.documento) + '</td></tr>';
+      }).join('') || '<tr><td colspan="5" class="vazio">Nenhum preço cadastrado.</td></tr>';
+    }
+
+    /* ---------- Abas ---------- */
+
+    el('cfg-abas').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('[data-aba]');
+      if (!botao) return;
+      limparMensagem();
+      document.querySelectorAll('#cfg-abas [data-aba]').forEach(function (b) { b.classList.toggle('ativa', b === botao); });
+      document.querySelectorAll('#tela-configuracoes .cfg-painel').forEach(function (p) { p.hidden = p.dataset.painel !== botao.dataset.aba; });
+    });
+
+    window.TELAS.configuracoes = { abrir: carregar };
+  })();
+</script>

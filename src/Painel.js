@@ -16,6 +16,13 @@ const PRAZO_IDS_SEI_DIAS_UTEIS = 10;
 
 function getPainel() {
   const usuario = requirePerfil_(TODOS_PERFIS);
+  const painel = montarPainel_();
+  painel.podeLancar = usuario.perfil === PERFIS.SUPERADMIN || usuario.perfil === PERFIS.FISCAL_TECNICO;
+  return painel;
+}
+
+/** Saldos, alertas e competências da vigência atual, sem checar usuário (usado também pelo lembrete). */
+function montarPainel_() {
   const config = lerConfig_();
   const vigenciaId = String(config.VIGENCIA_ATUAL || '').trim();
   const registroVigencia = listar_(ABAS.VIGENCIAS).find(function (v) { return String(v.id).trim() === vigenciaId; });
@@ -87,7 +94,6 @@ function getPainel() {
     vigencia: vigencia,
     alertaSaldo: alertaSaldo,
     ansLimiteMin: numeroConfig_(config, 'ANS_LIMITE_MIN'),
-    podeLancar: usuario.perfil === PERFIS.SUPERADMIN || usuario.perfil === PERFIS.FISCAL_TECNICO,
     saldos: saldos,
     alertas: alertas,
     competencias: competencias

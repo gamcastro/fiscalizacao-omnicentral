@@ -36,6 +36,10 @@ const DADOS_INICIAIS = {
       chave: 'UNIDADE_PAGAMENTO', valor: 'ASGEC',
       descricao: 'Unidade destinatária do despacho de pagamento (ASGEC desde a competência 09/2026; antes, COGECON)'
     },
+    {
+      chave: 'EMAILS_LEMBRETE', valor: 'george.castro@tre-ma.jus.br',
+      descricao: 'Quem recebe o lembrete do 1º dia útil e o aviso de prazo dos documentos SEI (separar com ;)'
+    },
     { chave: 'FISCAL_TECNICO_ASSINATURA', valor: 'George André Melo Castro', descricao: 'Nome no rodapé do atesto e do despacho' }
   ],
   Itens: [

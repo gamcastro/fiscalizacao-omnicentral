@@ -67,6 +67,7 @@ Linha 1 de cada aba é o cabeçalho. O código lê as colunas pelo nome do cabe�
 | ANS_PERCENTUAL | 99,741 | Referência do TR |
 | ALERTA_SALDO | 0,8 | 80% |
 | SEI_PAGAMENTO | 0006617-02.2025.6.27.8000 | |
+| EMAILS_LEMBRETE | george.castro@tre-ma.jus.br | Destinatários do lembrete do 1º dia útil e do aviso de prazo dos documentos SEI, separados por ";" (v0.6.0) |
 | UNIDADE_PAGAMENTO | ASGEC | Destinatária do despacho de pagamento. ASGEC desde a competência 09/2026; antes, COGECON (mudança informada em 10/10/2026) |
 | FISCAL_TECNICO_ASSINATURA | George André Melo Castro | Nome no rodapé do atesto e do despacho |
 
@@ -135,7 +136,7 @@ Status, em ordem:
 `competencia` · `item` · `quantidade` · `quantidadeRelatorio` (valor bruto do relatório) · `ajusteObs` (ex.: "excluídas 2 msgs da campanha Teste Mudança Sessão") · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
 
 ### 3.9 `Log`
-`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
+`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG/EXCLUIR/LEMBRETE) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
 
 ### 3.10 Dados iniciais do histórico
 
@@ -186,7 +187,7 @@ Observações:
 4. **Textos do SEI (dentro do detalhe):** atesto e despacho gerados (seção 6), com botão "Copiar".
 5. **Histórico (todos):** todas as competências, com filtro por vigência e exportação CSV.
 6. **Usuários (`SUPERADMIN`):** cadastrar, editar e ativar/desativar usuários, com perfil e condição.
-7. **Configurações (`SUPERADMIN`):** editar a aba `Config`, ver vigências, quantidades e preços de referência (somente leitura na v1).
+7. **Configurações (`SUPERADMIN`):** editar a aba `Config`; cadastrar, editar e excluir feriados e vigências com as quantidades contratadas; ligar/desligar o lembrete por e-mail; consultar os preços de referência (somente leitura). Implementado na v0.7.0.
 
 Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado.
 
