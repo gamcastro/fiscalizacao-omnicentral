@@ -32,6 +32,9 @@
   <div class="cartao">
     <h2>Processo SEI</h2>
     <div class="grade-form" id="det-sei-campos"></div>
+    <label class="check confirmacao-fontes" id="det-confirma-label" hidden>
+      <input type="checkbox" id="det-confirma-fontes"> <span id="det-confirma-texto"></span>
+    </label>
     <div class="acoes">
       <button type="button" id="det-salvar-sei" class="botao" hidden>Salvar dados do SEI</button>
       <button type="button" id="det-conferencia" class="botao primario" hidden>Enviar para conferência</button>
@@ -73,6 +76,21 @@
     function rotuloComp(c) { return c.slice(5) + '/' + c.slice(0, 4); }
     function fmtInt(n) { return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR'); }
 
+    /** Sub-linhas do item 5 com as parcelas por fonte (ou o aviso de competência antiga). */
+    function linhasFontesResumo(fontes, m) {
+      if (!fontes.length) {
+        return vazioQtd(m.quantidade) ? '' :
+          '<tr class="sub-fonte"><td></td><td colspan="4" class="dica">sem detalhamento por fonte</td></tr>';
+      }
+      return fontes.map(function (f) {
+        return '<tr class="sub-fonte"><td></td><td>↳ ' + esc(f.fonteNome) + '</td>' +
+          '<td class="numero">' + fmtInt(f.quantidadeBruta) + '</td>' +
+          '<td class="numero">' + fmtInt(f.quantidadeConsiderada) + '</td>' +
+          '<td>' + (f.exclusoes ? 'excluídas ' + fmtInt(f.exclusoes) + ' (' + esc(f.exclusoesObs) + ')' : '') + '</td></tr>';
+      }).join('');
+    }
+    function vazioQtd(v) { return v === null || v === undefined || v === ''; }
+
     function renderizar(d) {
       atual = d;
       const p = d.permissoes;
@@ -88,10 +106,12 @@
         .filter(function (it) { return it.tipo !== 'EVENTUAL' || medicoes[it.item]; })
         .map(function (it) {
           const m = medicoes[it.item] || {};
-          return '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td>' +
+          let linha = '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td>' +
             '<td class="numero">' + (it.tipo === 'CONSUMO' ? fmtInt(m.quantidadeRelatorio) : '—') + '</td>' +
             '<td class="numero"><strong>' + fmtInt(m.quantidade) + '</strong></td>' +
             '<td>' + esc(m.ajusteObs || '') + '</td></tr>';
+          if (it.item === 5) linha += linhasFontesResumo(d.fontes || [], m);
+          return linha;
         }).join('');
       el('det-ans').innerHTML = '<strong>ANS:</strong> ' + (d.ansUptimePct === null ? 'não informado'
         : esc(String(d.ansUptimePct).replace('.', ',')) + '% · ' + d.ansMinutos + ' min ' +
@@ -116,6 +136,9 @@
         '<label>Data de envio para pagamento<input type="date" id="det-data-envio" value="' + esc(d.dataEnvioCogecon) + '"' + desabilitado + '></label>';
       el('det-salvar-sei').hidden = !p.editarSei;
       el('det-conferencia').hidden = !p.enviarConferencia;
+      el('det-confirma-label').hidden = !(p.enviarConferencia && d.exigeConfirmacaoFontes);
+      el('det-confirma-texto').textContent = d.textoVerificacaoFontes || '';
+      el('det-confirma-fontes').checked = false;
       el('det-instruir').hidden = !p.iniciarInstrucao;
       el('det-enviar').hidden = !p.enviarCogecon;
       el('det-reabrir-bloco').hidden = !p.reabrir;
@@ -188,7 +211,8 @@
     });
     el('det-conferencia').addEventListener('click', function () {
       if (!confirm('Enviar a competência ' + rotuloComp(atual.competencia) + ' para conferência?')) return;
-      executar(chamar('avancarStatus', atual.competencia, 'EM_CONFERENCIA'));
+      executar(chamar('avancarStatus', atual.competencia, 'EM_CONFERENCIA',
+        { confirmouVerificacaoFontes: el('det-confirma-fontes').checked }));
     });
     el('det-instruir').addEventListener('click', function () {
       if (!confirm('Passar a competência ' + rotuloComp(atual.competencia) + ' para "Instruindo SEI"?')) return;

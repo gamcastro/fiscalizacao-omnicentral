@@ -7,6 +7,7 @@
     <button type="button" data-aba="parametros" class="ativa">Parâmetros</button>
     <button type="button" data-aba="feriados">Feriados</button>
     <button type="button" data-aba="vigencias">Vigências e quantidades</button>
+    <button type="button" data-aba="fontes">Fontes de relatório</button>
     <button type="button" data-aba="lembrete">Lembrete por e-mail</button>
     <button type="button" data-aba="precos">Preços de referência</button>
   </nav>
@@ -67,6 +68,26 @@
         <button type="button" id="cfg-vig-cancelar" class="botao">Cancelar</button>
       </div>
     </form>
+  </div>
+
+  <!-- Fontes de relatório -->
+  <div class="cartao cfg-painel" data-painel="fontes" hidden>
+    <p class="dica">Catálogo das fontes (relatórios do SZ.chat) que somam o item. Fonte que deixou de existir é
+      desativada, nunca apagada. Fontes ativas aparecem como sugestão em cada competência nova.</p>
+    <form id="cfg-fte-form" class="grade-form" autocomplete="off">
+      <label>Item<select id="cfg-fte-item"></select></label>
+      <label class="largo">Nome (como aparece em Relatórios Premium)<input type="text" id="cfg-fte-nome"></label>
+      <label class="largo">Título interno (opcional)<input type="text" id="cfg-fte-titulo"></label>
+      <label class="check"><input type="checkbox" id="cfg-fte-ativo" checked> Ativa</label>
+      <div class="acoes acoes-form">
+        <button type="submit" id="cfg-fte-salvar" class="botao primario">Incluir fonte</button>
+        <button type="button" id="cfg-fte-cancelar" class="botao" hidden>Cancelar edição</button>
+      </div>
+    </form>
+    <table class="tabela">
+      <thead><tr><th>Id</th><th>Item</th><th>Nome</th><th>Título interno</th><th>Situação</th><th>Usos</th><th></th></tr></thead>
+      <tbody id="cfg-fte-lista"></tbody>
+    </table>
   </div>
 
   <!-- Lembrete -->
@@ -133,6 +154,7 @@
       renderizarParametros();
       renderizarFeriados();
       renderizarVigencias();
+      renderizarFontes();
       renderizarLembrete();
       renderizarPrecos();
     }
@@ -336,6 +358,65 @@
         observacao: el('cfg-vig-obs').value,
         quantidades: quantidades
       });
+    });
+
+    /* ---------- Fontes de relatório ---------- */
+
+    function renderizarFontes() {
+      el('cfg-fte-item').innerHTML = estado.dados.itens.map(function (it) {
+        return '<option value="' + it.item + '"' + (it.item === 5 ? ' selected' : '') + '>' + it.item + ' – ' + esc(it.descricao) + '</option>';
+      }).join('');
+      el('cfg-fte-lista').innerHTML = estado.dados.fontes.map(function (f) {
+        return '<tr' + (f.ativo ? '' : ' class="inativo"') + '><td>' + esc(f.id) + '</td><td>' + f.item + '</td>' +
+          '<td>' + esc(f.nome) + '</td><td>' + esc(f.tituloInterno) + '</td>' +
+          '<td>' + (f.ativo ? '<span class="etiqueta ok">Ativa</span>' : '<span class="etiqueta off">Inativa</span>') + '</td>' +
+          '<td>' + f.usos + '</td>' +
+          '<td class="acoes-linha"><button type="button" class="botao pequeno" data-editar-fonte="' + esc(f.id) + '">Editar</button> ' +
+          '<button type="button" class="botao pequeno" data-alternar-fonte="' + esc(f.id) + '">' + (f.ativo ? 'Desativar' : 'Ativar') + '</button></td></tr>';
+      }).join('') || '<tr><td colspan="7" class="vazio">Nenhuma fonte cadastrada. Rode setup() para criar o catálogo inicial.</td></tr>';
+      limparFormFonte();
+    }
+
+    function limparFormFonte() {
+      estado.fonteEditando = null;
+      el('cfg-fte-nome').value = '';
+      el('cfg-fte-titulo').value = '';
+      el('cfg-fte-ativo').checked = true;
+      el('cfg-fte-item').value = '5';
+      el('cfg-fte-salvar').textContent = 'Incluir fonte';
+      el('cfg-fte-cancelar').hidden = true;
+    }
+
+    el('cfg-fte-cancelar').addEventListener('click', limparFormFonte);
+    el('cfg-fte-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      executar('salvarFonteCatalogo', {
+        novo: !estado.fonteEditando,
+        id: estado.fonteEditando || '',
+        item: Number(el('cfg-fte-item').value),
+        nome: el('cfg-fte-nome').value,
+        tituloInterno: el('cfg-fte-titulo').value,
+        ativo: el('cfg-fte-ativo').checked
+      });
+    });
+    el('cfg-fte-lista').addEventListener('click', function (ev) {
+      const editar = ev.target.closest('[data-editar-fonte]');
+      const alternar = ev.target.closest('[data-alternar-fonte]');
+      const id = (editar || alternar || {}).dataset;
+      if (!id) return;
+      const f = estado.dados.fontes.find(function (x) { return x.id === (editar ? id.editarFonte : id.alternarFonte); });
+      if (editar) {
+        estado.fonteEditando = f.id;
+        el('cfg-fte-item').value = String(f.item);
+        el('cfg-fte-nome').value = f.nome;
+        el('cfg-fte-titulo').value = f.tituloInterno;
+        el('cfg-fte-ativo').checked = f.ativo;
+        el('cfg-fte-salvar').textContent = 'Salvar alteração';
+        el('cfg-fte-cancelar').hidden = false;
+        el('cfg-fte-nome').focus();
+      } else if (confirm((f.ativo ? 'Desativar' : 'Ativar') + ' a fonte "' + f.nome + '"?')) {
+        executar('salvarFonteCatalogo', { novo: false, id: f.id, item: f.item, nome: f.nome, tituloInterno: f.tituloInterno, ativo: !f.ativo });
+      }
     });
 
     /* ---------- Lembrete ---------- */

@@ -43,6 +43,7 @@ function exportarHistoricoCsv(vigenciaId) {
       cabecalho.push('Item ' + it.item + ' – medida');
     }
   });
+  cabecalho.push('Item ' + ITEM_COM_FONTES + ' – fontes');
   cabecalho.push('ANS – uptime (%)', 'ANS – minutos', 'ANS – cumprido', 'ANS – observação');
   CAMPOS_IDS_SEI.forEach(function (f) { cabecalho.push('ID do ' + f.rotulo); });
   cabecalho.push('Data de envio para pagamento', 'Pasta do Drive');
@@ -54,6 +55,7 @@ function exportarHistoricoCsv(vigenciaId) {
       if (it.tipo === 'CONSUMO') linha.push(m.quantidadeRelatorio, m.quantidade, m.ajusteObs);
       else linha.push(m.quantidade);
     });
+    linha.push(c.fontesResumo);
     linha.push(
       c.ansUptimePct === null ? '' : String(c.ansUptimePct).replace('.', ','),
       c.ansMinutos,
@@ -103,6 +105,17 @@ function dadosHistorico_(vigenciaId) {
     };
   });
 
+  // Resumo do item 5 por fonte, ex.: "Relatório de envio em lote: 5.215 − 2 = 5.213; Relatório Mensagem ativa: 35.529"
+  const fontesPorComp = {};
+  if (abaFontesExiste_(ABAS.MED_FONTES)) listar_(ABAS.MED_FONTES).forEach(function (f) {
+    if (Number(f.item) !== ITEM_COM_FONTES) return;
+    const comp = textoCompetencia_(f.competencia);
+    const excl = Number(f.exclusoes) || 0;
+    const texto = String(f.fonteNome) + ': ' + formatarInteiro_(Number(f.quantidadeBruta)) +
+      (excl ? ' − ' + formatarInteiro_(excl) + ' = ' + formatarInteiro_(Number(f.quantidadeConsiderada)) : '');
+    (fontesPorComp[comp] = fontesPorComp[comp] || []).push(texto);
+  });
+
   const competencias = listar_(ABAS.COMPETENCIAS)
     .filter(function (c) { return String(c.vigencia).trim() === pedida; })
     .map(function (c) {
@@ -125,7 +138,8 @@ function dadosHistorico_(vigenciaId) {
         ids: ids,
         idsPreenchidos: preenchidos,
         dataEnvio: dataIso_(c.dataEnvioCogecon),
-        pastaDrive: String(c.pastaDrive || '')
+        pastaDrive: String(c.pastaDrive || ''),
+        fontesResumo: fontesPorComp[comp] ? fontesPorComp[comp].join('; ') : 'sem detalhamento por fonte'
       };
     })
     .sort(function (a, b) { return a.competencia < b.competencia ? 1 : -1; });

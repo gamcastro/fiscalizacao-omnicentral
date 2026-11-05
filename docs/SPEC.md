@@ -22,9 +22,9 @@ Versão 1 – 08/10/2026 · Responsável: George André Melo Castro (fiscal téc
 
 Começa no 1º dia útil do mês seguinte à competência:
 
-1. Extrair os relatórios do SZ.chat (Relatórios → Premium): logins, envio em lote e mensagens passivas.
+1. Extrair os relatórios do SZ.chat (Relatórios → Premium): logins, mensagens passivas e **todos os relatórios de mensagens ativas/template do período**. Hoje são o "Relatório de envio em lote" e o "Relatório Mensagem ativa" (título interno: "Relatório de mensagens de notificação ativa"), mas essas fontes são sazonais: podem não ter movimento no mês, mudar de nome ou surgir novas. Abrir todo relatório cujo nome tenha "ativa", "template", "notificação", "HSM" ou "envio" e baixar os que tiverem mensagens no período.
 2. Apurar o ANS no Status da Fortics (fortics.statuspage.io, "View historical uptime").
-3. Consolidar os 3 relatórios num PDF (`relatorio_itens_omni_<mês>_<ano>.pdf`) e salvar com o do ANS (`relatorio_ans_<mês>_<ano>.pdf`) na pasta do mês no Drive.
+3. Consolidar os relatórios de consumo num PDF (`relatorio_itens_omni_<mês>_<ano>.pdf`), nesta ordem: logins → todas as fontes de mensagens ativas → mensagens passivas, e salvar com o do ANS (`relatorio_ans_<mês>_<ano>.pdf`) na pasta do mês no Drive.
 4. **Registrar as quantidades e o ANS neste app.** É o papel do app.
 5. Conferir o saldo e o ANS. Se passar dos limites, registrar uma ocorrência e avisar o gestor.
 6. Instruir o processo SEI de pagamento:
@@ -83,7 +83,7 @@ Linha inicial: george.castro@tre-ma.jus.br · George André Melo Castro · SUPER
 | 2 | Solução de atendimento humano com mensagens ilimitadas | Ativação/mês | CONSUMO | Relatório de logins (e-mails únicos no período) |
 | 3 | Serviço de atendimento por chatbot com interações ilimitadas | Assinatura mensal | FIXO | — |
 | 4 | Mensagem passiva de atendimento via WhatsApp | Conversa 24h | CONSUMO | Relatório de mensagens passivas (total de atendimentos) |
-| 5 | Mensagem ativa via WhatsApp (template HSM) | Mensagem | CONSUMO | Relatório de envio em lote (total, sem campanhas de teste) |
+| 5 | Mensagem ativa via WhatsApp (template HSM) | Mensagem | CONSUMO | Soma das fontes de mensagens ativas do mês, sem campanhas de teste (ver 3.11 e 3.12) |
 | 6 | Pacote adicional de videochamadas simultâneas (+5 agentes) | Pacote | EVENTUAL | — |
 | 7 | Serviço de integração e desenvolvimento | Hora | EVENTUAL | — |
 | 8 | Serviço de implantação e configuração | Serviço | EVENTUAL | — |
@@ -148,7 +148,30 @@ Status, em ordem:
 
 Observações:
 - 2026-09, item 5: o relatório traz 5.215, e 2 mensagens da campanha "Teste Mudança Sessão" foram excluídas.
+- 2026-10, item 5 = 35.878: "Relatório de envio em lote" 349 + "Relatório Mensagem ativa" 35.529. Item 2 = 5 (inclui o login de fagianni.miranda@tre-ma.jus.br, que conta normalmente).
+- O detalhamento do item 5 por fonte fica na aba `MedicaoFontes` (3.12). Carga inicial dessa aba:
+  - 2026-08: "Relatório de envio em lote" – bruto 69.070, considerado 69.070.
+  - 2026-09: "Relatório de envio em lote" – bruto 5.215, exclusão 2 ("Teste Mudança Sessão"), considerado 5.213.
+  - 2026-10: "Relatório de envio em lote" 349 e "Relatório Mensagem ativa" 35.529.
 - 2026-07: os dados ainda serão informados. Não inventar.
+
+### 3.11 `FontesRelatorio` (catálogo de fontes por item)
+`id` · `item` · `nome` (como aparece na lista de Relatórios Premium) · `tituloInterno` (título dentro do relatório, opcional) · `ativo` (TRUE/FALSE) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+Linhas iniciais:
+| id | item | nome | tituloInterno | ativo |
+|---|---|---|---|---|
+| F-ENVIO-LOTE | 5 | Relatório de envio em lote | Relatório de envio em lote | TRUE |
+| F-MSG-ATIVA | 5 | Relatório Mensagem ativa | Relatório de mensagens de notificação ativa | TRUE |
+
+- Fonte nova informada como "Outro" no lançamento pode ser incluída no catálogo pelo `FISCAL_TECNICO` ou `SUPERADMIN` (com confirmação), para padronizar o nome nos meses seguintes.
+- Fonte que deixou de existir é desativada (`ativo` = FALSE), nunca apagada.
+
+### 3.12 `MedicaoFontes` (detalhe do item 5 por fonte; uma linha por competência, item e fonte)
+`competencia` · `item` · `fonteId` (id do catálogo ou vazio quando "Outro") · `fonteNome` (nome gravado no momento do lançamento) · `quantidadeBruta` · `exclusoes` (quantidade excluída) · `exclusoesObs` (ex.: "campanha Teste Mudança Sessão") · `quantidadeConsiderada` (= bruta − exclusões) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+- Na aba `Medicoes`, o item 5 continua com uma linha só: `quantidade` = soma de `quantidadeConsiderada`, `quantidadeRelatorio` = soma de `quantidadeBruta`. O `ajusteObs` resume as exclusões.
+- O modelo serve para qualquer item, mas na v atual só o item 5 usa fontes múltiplas.
 
 ## 4. Regras de negócio
 
@@ -167,6 +190,12 @@ Observações:
    - `INSTRUINDO_SEI` → `ENVIADA_COGECON`: exige os 4 IDs do SEI e `dataEnvioCogecon`.
    - Depois de `ENVIADA_COGECON`, a competência fica bloqueada. Só o `SUPERADMIN` reabre, com justificativa no Log.
 7. ~~**Ciente do gestor**~~: retirado em 10/10/2026 (v0.4.1), a pedido do fiscal técnico titular. As colunas `cienteGestorPor` e `cienteGestorEm` continuam na aba, sem uso.
+8. **Item 5 por fontes:**
+   - o total do item 5 é sempre a soma das `quantidadeConsiderada` das fontes da competência;
+   - uma competência pode ter 0, 1 ou mais fontes; com 0 fontes o item 5 fica 0, e o app pede confirmação explícita ("Não houve mensagens ativas no período");
+   - não pode haver a mesma fonte duas vezes na mesma competência;
+   - `exclusoes` > 0 exige `exclusoesObs`;
+   - **trava de conferência:** ao passar de `RASCUNHO` para `EM_CONFERENCIA` com uma única fonte (ou nenhuma), o app exige marcar "Confirmo que verifiquei todos os relatórios de mensagens ativas/template do período em Relatórios Premium". A confirmação vai para o Log.
 
 ## 5. Telas
 
@@ -176,12 +205,13 @@ Observações:
    - Tabela das competências da vigência com status, ANS e indicador de IDs do SEI completos.
 2. **Lançar / editar competência (`FISCAL_TECNICO`, `SUPERADMIN`):**
    - Mês da competência.
-   - Itens 1 a 5, e eventuais recolhíveis, com campos para quantidade do relatório, quantidade medida e observação de ajuste.
+   - Itens 1 a 4, e eventuais recolhíveis, com campos para quantidade do relatório, quantidade medida e observação de ajuste.
+   - **Item 5 como lista de fontes:** cada linha tem fonte (lista do catálogo ativo + "Outro (informar nome)"), quantidade bruta, exclusões e observação. Botão "+ Adicionar fonte" e botão de remover linha. O total do item 5 é recalculado na hora e aparece em destaque. Ao salvar uma fonte "Outro", o app oferece incluí-la no catálogo.
    - ANS: uptime % e minutos calculados.
    - Link da pasta do Drive.
    - Botões "Salvar rascunho" e "Enviar para conferência".
 3. **Detalhe da competência (todos; edição conforme o perfil):**
-   - Resumo das quantidades e do ANS.
+   - Resumo das quantidades e do ANS, com as parcelas do item 5 por fonte.
    - Linha do tempo de status.
    - Campos dos 4 IDs do SEI e da data de envio.
 4. **Textos do SEI (dentro do detalhe):** atesto e despacho gerados (seção 6), com botão "Copiar".
@@ -241,6 +271,13 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
 3. **Fase 3 – Painel:** saldos por item, alertas e pendências, tabela de competências.
 4. **Fase 4 – SEI:** detalhe da competência, IDs, transições de status, textos do atesto e do despacho com "Copiar".
 5. **Fase 5 – Extras (opcional, decidir depois):** histórico com CSV, lembrete por e-mail no 1º dia útil, leitura automática dos PDFs da pasta do mês.
+
+6. **Fase 6 – Fontes variáveis do item 5 (pedida em 05/11/2026):**
+   - criar as abas `FontesRelatorio` e `MedicaoFontes` pelo `setup()` (sem apagar nada) e carregar o catálogo e o histórico da seção 3.10;
+   - trocar o campo único do item 5 pela lista de fontes na tela de lançamento;
+   - regra 8 da seção 4 (soma, duplicidade, exclusões, trava de conferência);
+   - parcelas por fonte no detalhe da competência; o atesto continua só com o total do item 5;
+   - competências já lançadas continuam válidas: se não tiverem linhas em `MedicaoFontes`, mostrar o total da aba `Medicoes` com o aviso "sem detalhamento por fonte".
 
 Em cada fase: plano → aprovação → código → `clasp push` → roteiro de teste.
 
