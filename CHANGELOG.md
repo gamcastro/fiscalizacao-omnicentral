@@ -7,8 +7,12 @@ Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em
 
 ### Incluído
 - Botão "Montar relatórios do mês" no lançamento: o fiscal escolhe (ou arrasta) os PDFs baixados do SZ.chat, um por relatório, e o PDF do ANS (Fortics), com qualquer nome.
-- O app identifica cada PDF pelo título e pelo período (texto extraído num Google Docs temporário, apagado em seguida; o PDF não fica guardado), põe na ordem dos itens (logins → mensagens passivas → mensagens ativas) e avisa sobre relatório de outro mês, Relatório de convocação (fora do contrato), PDF já consolidado ou arquivo não reconhecido. A ordem pode ser ajustada e cada arquivo pode ser desmarcado.
+- O app identifica cada PDF pelo título e pelo período (texto extraído num Google Docs temporário, apagado em seguida; o PDF não fica guardado), põe na ordem do SPEC 1.2 (logins → mensagens ativas → mensagens passivas) e avisa sobre relatório de outro mês, Relatório de convocação (fora do contrato), PDF já consolidado ou arquivo não reconhecido. A ordem pode ser ajustada e cada arquivo pode ser desmarcado.
 - "Montar, baixar e preencher valores": junta os PDFs no navegador (biblioteca pdf-lib 1.17.1, carregada do cdnjs com verificação de integridade, só nesta tela), baixa `relatorio_itens_omni_<mês>_<ano>.pdf` e `relatorio_ans_<mês>_<ano>.pdf` e preenche o lançamento com os valores lidos, como o "Ler PDFs da pasta". Nada é gravado sem o fiscal salvar.
+
+- Menu "Guia rápido" (todos os perfis): passo a passo do processo de um mês, do download dos relatórios ao envio para pagamento, com o que fazer quando algo sair diferente.
+- Leitura dos PDFs avulsos: título quebrado em linhas, conteúdo antes do título e o quadro de logins no formato do Google; cada arquivo é lido separadamente. Se o quadro de logins não for lido, usa o total da tabela de e-mails, com aviso. Cada arquivo da montagem tem "ver texto lido".
+- Atalho de homologação `limparOutubro2026Homologacao()`.
 
 ### Observação
 - Os PDFs não são enviados a sites externos. Sem permissão nova do Google.

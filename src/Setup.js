@@ -335,6 +335,11 @@ function limparSetembro2026Homologacao() {
   return limparCompetenciaHomologacao('2026-09');
 }
 
+/** Atalho para o editor: limpa 10/2026 na homologação, para testar o mês inteiro pelo Guia rápido. */
+function limparOutubro2026Homologacao() {
+  return limparCompetenciaHomologacao('2026-10');
+}
+
 function criarAba_(ss, nome) {
   const sh = ss.insertSheet(nome);
   const cabecalho = CABECALHOS[nome];

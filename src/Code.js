@@ -55,7 +55,8 @@ function menu_() {
     { id: 'lancamento', rotulo: 'Lançar competência', perfis: [PERFIS.FISCAL_TECNICO] },
     { id: 'historico', rotulo: 'Histórico', perfis: TODOS_PERFIS },
     { id: 'usuarios', rotulo: 'Usuários', perfis: [PERFIS.SUPERADMIN] },
-    { id: 'configuracoes', rotulo: 'Configurações', perfis: [PERFIS.SUPERADMIN] }
+    { id: 'configuracoes', rotulo: 'Configurações', perfis: [PERFIS.SUPERADMIN] },
+    { id: 'guia', rotulo: 'Guia rápido', perfis: TODOS_PERFIS }
   ];
 }
 

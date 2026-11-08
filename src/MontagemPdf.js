@@ -10,8 +10,8 @@
 
 const TAMANHO_MAX_PDF_MB = 20;
 
-/** Ordem dos relatórios no PDF consolidado de itens: pela ordem dos itens (2, 4, 5). */
-const ORDEM_TIPO_PDF = { logins: 1, passivas: 2, ativas: 3, consolidado: 3, desconhecido: 8, fora: 9 };
+/** Ordem dos relatórios no PDF consolidado de itens (SPEC 1.2): logins → mensagens ativas → mensagens passivas. */
+const ORDEM_TIPO_PDF = { logins: 1, ativas: 2, consolidado: 2, passivas: 3, desconhecido: 8, fora: 9 };
 const ROTULO_TIPO_PDF = {
   logins: 'Item 2 – logins',
   ativas: 'Item 5 – mensagens ativas',

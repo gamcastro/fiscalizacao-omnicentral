@@ -24,7 +24,7 @@ Começa no 1º dia útil do mês seguinte à competência:
 
 1. Extrair os relatórios do SZ.chat (Relatórios → Premium): logins, mensagens passivas e **todos os relatórios de mensagens ativas/template do período**. Hoje são o "Relatório de envio em lote" e o "Relatório Mensagem ativa" (título interno: "Relatório de mensagens de notificação ativa"), mas essas fontes são sazonais: podem não ter movimento no mês, mudar de nome ou surgir novas. Abrir todo relatório cujo nome tenha "ativa", "template", "notificação", "HSM" ou "envio" e baixar os que tiverem mensagens no período.
 2. Apurar o ANS no Status da Fortics (fortics.statuspage.io, "View historical uptime").
-3. Consolidar os relatórios de consumo num PDF (`relatorio_itens_omni_<mês>_<ano>.pdf`), nesta ordem: logins → todas as fontes de mensagens ativas → mensagens passivas, e salvar com o do ANS (`relatorio_ans_<mês>_<ano>.pdf`) na pasta do mês no Drive.
+3. Consolidar os relatórios de consumo num PDF (`relatorio_itens_omni_<mês>_<ano>.pdf`), nesta ordem: logins → todas as fontes de mensagens ativas → mensagens passivas, e salvar com o do ANS (`relatorio_ans_<mês>_<ano>.pdf`) na pasta do mês no Drive. Desde a v0.10.0, a montagem é feita no próprio app ("Montar relatórios do mês", no lançamento): os PDFs baixados são identificados, ordenados e juntados no navegador, sem o iLovePDF. O passo a passo do mês está no menu "Guia rápido".
 4. **Registrar as quantidades e o ANS neste app.** É o papel do app.
 5. Conferir o saldo e o ANS. Se passar dos limites, registrar uma ocorrência e avisar o gestor.
 6. Instruir o processo SEI de pagamento:
