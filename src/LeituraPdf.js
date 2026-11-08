@@ -143,8 +143,13 @@ function interpretarTextoItens_(texto, comp, catalogo) {
   });
 
   secoes.forEach(function (s) {
+    // Relatório de outro mês não é aplicado: só gera aviso.
     const periodo = periodoConfere_(s.texto, comp);
-    if (!periodo.ok) resultado.avisos.push('"' + s.titulo + '": o período do relatório (' + periodo.texto + ') não é o mês da competência.');
+    if (!periodo.ok) {
+      resultado.avisos.push('"' + s.titulo + '": NÃO aplicado – o período do relatório (' + periodo.texto +
+        ') não é o mês da competência ' + rotuloCompetencia_(comp) + '.');
+      return;
+    }
     const tituloNorm = normalizarNomeFonte_(s.titulo);
 
     if (/logins/.test(tituloNorm)) {
@@ -198,9 +203,14 @@ function interpretarTextoItens_(texto, comp, catalogo) {
     resultado.fontes.push(fonte);
   });
 
-  if (!resultado.itens[2]) resultado.avisos.push('Relatório de logins não encontrado no PDF.');
-  if (!resultado.itens[4]) resultado.avisos.push('Relatório de mensagens passivas não encontrado no PDF.');
-  if (!resultado.fontes.length) resultado.avisos.push('Nenhuma fonte de mensagens ativas encontrada no PDF.');
+  const algumPeriodoCerto = secoes.some(function (s) { return periodoConfere_(s.texto, comp).ok; });
+  if (algumPeriodoCerto) {
+    if (!resultado.itens[2]) resultado.avisos.push('Relatório de logins não encontrado no PDF.');
+    if (!resultado.itens[4]) resultado.avisos.push('Relatório de mensagens passivas não encontrado no PDF.');
+    if (!resultado.fontes.length) resultado.avisos.push('Nenhuma fonte de mensagens ativas encontrada no PDF.');
+  } else {
+    resultado.avisos.push('O PDF de itens é de outro mês: nenhum valor foi aplicado. Confira se a pasta é a da competência.');
+  }
   return resultado;
 }
 

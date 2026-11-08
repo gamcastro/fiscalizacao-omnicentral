@@ -349,7 +349,8 @@
 
     function aplicarLeitura(r) {
       const painel = el('lan-pdf-resultado');
-      const jaDigitado = [2, 4].some(function (i) {
+      const temValores = !!(r.itens[2] || r.itens[4] || r.fontes.length || r.ans);
+      const jaDigitado = temValores && [2, 4].some(function (i) {
           const tr = document.querySelector('#lan-itens tr[data-item="' + i + '"]');
           return tr && tr.querySelector('.lan-qtd').value.trim() !== '';
         }) || linhasFonte().some(function (tr) { return tr.querySelector('.fte-bruta').value.trim() !== ''; }) ||
@@ -367,6 +368,7 @@
         const qtd = tr.querySelector('.lan-qtd');
         qtd.value = qtdExibicao(v.valor);
         qtd.dataset.espelho = qtd.value;
+        tr.querySelector('.lan-obs').value = ''; // relatório = medida: a observação de ajuste antiga não vale mais
         marcarAjuste(tr);
       });
       if (r.fontes.length) {
