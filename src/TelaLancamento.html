@@ -40,9 +40,12 @@
           <input type="text" id="lan-pasta" placeholder="https://drive.google.com/drive/folders/...">
         </label>
         <div class="acoes acoes-form">
+          <button type="button" id="lan-montar" class="botao primario" title="Escolha os PDFs baixados do SZ.chat e da Fortics">Montar relatórios do mês</button>
           <button type="button" id="lan-ler-pdfs" class="botao">Ler PDFs da pasta</button>
         </div>
       </div>
+      <input type="file" id="lan-arquivos" accept="application/pdf,.pdf" multiple hidden>
+      <div id="lan-montagem" class="resultado-pdf" hidden></div>
       <div id="lan-pdf-resultado" class="resultado-pdf" hidden></div>
     </div>
 
@@ -405,6 +408,269 @@
         '<p class="dica"><strong>Nada foi gravado.</strong> Confira os campos abaixo (exclusões do item 5, itens 1, 3 e eventuais) e clique em Salvar.</p>';
     }
 
+    /* ---------- Montagem dos relatórios do mês (v0.10.0) ----------
+       Os PDFs escolhidos ficam só no navegador. O servidor recebe cada um apenas para identificar
+       o relatório (título e período). A junção é feita aqui, com a pdf-lib, e o resultado é baixado. */
+
+    const PDF_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+    const PDF_LIB_SRI = 'sha512-z8IYLHO8bTgFqj+yrPyIJnzBDf7DDhWwiEsk4sY+Oe6J2M+WQequeGS7qioI5vT6rXgVRb4K1UVQC5ER7MKzKQ==';
+    const TIPOS_USAVEIS = ['logins', 'passivas', 'ativas', 'consolidado', 'ans'];
+    const MESES_ARQUIVO = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto',
+      'setembro', 'outubro', 'novembro', 'dezembro'];
+    let pdfLibCarregando = null;
+
+    function carregarPdfLib() {
+      if (window.PDFLib) return Promise.resolve(window.PDFLib);
+      if (!pdfLibCarregando) {
+        pdfLibCarregando = new Promise(function (resolve, reject) {
+          const s = document.createElement('script');
+          s.src = PDF_LIB_URL;
+          s.integrity = PDF_LIB_SRI;
+          s.crossOrigin = 'anonymous';
+          s.referrerPolicy = 'no-referrer';
+          s.onload = function () { resolve(window.PDFLib); };
+          s.onerror = function () {
+            pdfLibCarregando = null;
+            s.remove();
+            reject(new Error('Não foi possível carregar o componente que junta os PDFs. Verifique a internet e tente de novo.'));
+          };
+          document.head.appendChild(s);
+        });
+      }
+      return pdfLibCarregando;
+    }
+
+    function lerArquivoBase64(arquivo) {
+      return new Promise(function (resolve, reject) {
+        const leitor = new FileReader();
+        leitor.onload = function () { resolve(String(leitor.result).replace(/^data:[^,]*,/, '')); };
+        leitor.onerror = function () { reject(new Error('Não foi possível ler "' + arquivo.name + '".')); };
+        leitor.readAsDataURL(arquivo);
+      });
+    }
+
+    function nomesMontados(comp) {
+      const sufixo = MESES_ARQUIVO[Number(comp.slice(5)) - 1] + '_' + comp.slice(0, 4) + '.pdf';
+      return { itens: 'relatorio_itens_omni_' + sufixo, ans: 'relatorio_ans_' + sufixo };
+    }
+
+    function abrirEscolhaArquivos() {
+      if (!el('lan-competencia').value) { mostrarMensagem('Informe a competência antes de montar os relatórios.', 'erro'); return; }
+      el('lan-arquivos').value = '';
+      el('lan-arquivos').click();
+    }
+
+    function adicionarArquivos(arquivos) {
+      const lista = Array.prototype.filter.call(arquivos, function (a) { return /\.pdf$/i.test(a.name) || a.type === 'application/pdf'; });
+      if (!lista.length) { mostrarMensagem('Escolha arquivos PDF.', 'erro'); return; }
+      limparMensagem();
+      el('lan-pdf-resultado').hidden = true;
+      const comp = el('lan-competencia').value;
+      if (!estado.montagem || estado.montagem.comp !== comp) estado.montagem = { comp: comp, arquivos: [], seq: 0 };
+      const montagem = estado.montagem;
+      const novos = lista.map(function (a) {
+        return { id: ++montagem.seq, nome: a.name, situacao: 'lendo', arquivo: a };
+      });
+      montagem.arquivos = montagem.arquivos.concat(novos);
+      desenharMontagem();
+      // Identificação em paralelo: uma chamada ao servidor por arquivo.
+      novos.forEach(function (item) {
+        lerArquivoBase64(item.arquivo)
+          .then(function (b64) {
+            item.base64 = b64;
+            delete item.arquivo;
+            return chamar('identificarPdf', comp, item.nome, b64);
+          })
+          .then(function (r) {
+            Object.assign(item, r);
+            item.situacao = 'ok';
+            item.incluir = r.periodoOk && TIPOS_USAVEIS.indexOf(r.tipo) >= 0;
+          })
+          .catch(function (erro) { item.situacao = 'erro'; item.aviso = erro.message; item.incluir = false; })
+          .then(function () {
+            if (estado.montagem !== montagem) return; // painel fechado ou outra competência
+            ordenarMontagem();
+            desenharMontagem();
+          });
+      });
+    }
+
+    /** Ordem dos itens (logins → passivas → ativas). Depois de mexer à mão, vale a ordem manual. */
+    function ordenarMontagem() {
+      const m = estado.montagem;
+      if (m.manual) return;
+      m.arquivos.sort(function (a, b) {
+        const oa = a.situacao === 'ok' ? a.ordem : 50;
+        const ob = b.situacao === 'ok' ? b.ordem : 50;
+        return oa - ob || a.id - b.id;
+      });
+    }
+
+    function itensDaMontagem() { return estado.montagem.arquivos.filter(function (a) { return a.tipo !== 'ans'; }); }
+    function ansDaMontagem() { return estado.montagem.arquivos.filter(function (a) { return a.tipo === 'ans'; }); }
+
+    function linhaMontagem(a, i, total, mover) {
+      const relatorio = a.situacao === 'lendo'
+        ? '<span class="dica">identificando…</span>'
+        : a.situacao === 'erro'
+          ? '<span class="etiqueta nok">erro</span>'
+          : esc(a.rotuloTipo) + (a.titulo ? '<br><span class="dica">' + esc(a.titulo) + '</span>' : '');
+      const periodo = a.situacao !== 'ok' ? '' :
+        '<span class="etiqueta ' + (a.periodoOk ? 'ok' : 'nok') + '">' + (a.periodoOk ? 'mês certo' : 'outro mês') + '</span>' +
+        (a.periodoTexto ? '<br><span class="dica">' + esc(a.periodoTexto) + '</span>' : '');
+      return '<tr data-mont="' + a.id + '"' + (a.incluir ? '' : ' class="inativo"') + '>' +
+        '<td>' + (mover ? (i + 1) + '.' : '') + '</td>' +
+        '<td>' + esc(a.nome) + (a.aviso ? '<br><span class="texto-alerta">' + esc(a.aviso) + '</span>' : '') + '</td>' +
+        '<td>' + relatorio + '</td>' +
+        '<td>' + periodo + '</td>' +
+        '<td><label class="mont-usar"><input type="checkbox" class="mont-incluir"' + (a.incluir ? ' checked' : '') +
+          (a.situacao === 'ok' ? '' : ' disabled') + '> usar</label></td>' +
+        '<td class="mont-acoes">' +
+          (mover ? '<button type="button" class="botao pequeno mont-subir" title="Subir"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+            '<button type="button" class="botao pequeno mont-descer" title="Descer"' + (i === total - 1 ? ' disabled' : '') + '>↓</button>' : '') +
+          '<button type="button" class="botao pequeno mont-tirar" title="Tirar da lista">✕</button></td>' +
+        '</tr>';
+    }
+
+    function tabelaMontagem(lista, mover, textoVazio) {
+      if (!lista.length) return '<p class="vazio">' + textoVazio + '</p>';
+      return '<table class="tabela tabela-montagem"><thead><tr><th></th><th>Arquivo</th><th>Relatório</th><th>Período</th><th></th><th></th></tr></thead><tbody>' +
+        lista.map(function (a, i) { return linhaMontagem(a, i, lista.length, mover); }).join('') + '</tbody></table>';
+    }
+
+    function desenharMontagem() {
+      const m = estado.montagem;
+      const painel = el('lan-montagem');
+      painel.hidden = false;
+      const lendo = m.arquivos.filter(function (a) { return a.situacao === 'lendo'; }).length;
+      const nomes = nomesMontados(m.comp);
+      painel.innerHTML =
+        '<div class="cabecalho-form"><h3>Montar relatórios de ' + esc(rotuloComp(m.comp)) + '</h3>' +
+          '<button type="button" class="botao pequeno" id="mont-fechar">Fechar</button></div>' +
+        '<p class="dica">Escolha (ou arraste para cá) os PDFs baixados do SZ.chat, um por relatório, e o do ANS (Fortics). ' +
+          'O app identifica cada um, põe na ordem dos itens e junta tudo no seu navegador, sem enviar os arquivos a sites externos.</p>' +
+        '<h4>' + esc(nomes.itens) + ' <span class="dica">(nesta ordem)</span></h4>' +
+        tabelaMontagem(itensDaMontagem(), true, 'Nenhum relatório do SZ.chat escolhido.') +
+        '<h4>' + esc(nomes.ans) + '</h4>' +
+        tabelaMontagem(ansDaMontagem(), false, 'Nenhum PDF do ANS escolhido (sem ele, digite o uptime).') +
+        '<div class="acoes">' +
+          '<button type="button" class="botao" id="mont-adicionar">+ Adicionar arquivos</button>' +
+          '<button type="button" class="botao primario" id="mont-montar"' + (lendo ? ' disabled' : '') + '>' +
+            (lendo ? 'Identificando ' + lendo + ' arquivo(s)…' : 'Montar, baixar e preencher valores') + '</button>' +
+        '</div>';
+    }
+
+    function baixarPdf(bytes, nome) {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      link.download = nome;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(function () { URL.revokeObjectURL(link.href); link.remove(); }, 5000);
+    }
+
+    function base64ParaBytes(b64) {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    /** Junta os PDFs na ordem da lista (junção simples, página por página). */
+    function juntarPdfs(lista) {
+      return carregarPdfLib().then(function (PDFLib) {
+        return PDFLib.PDFDocument.create().then(function (destino) {
+          return lista.reduce(function (p, a) {
+            return p.then(function () {
+              return PDFLib.PDFDocument.load(base64ParaBytes(a.base64), { ignoreEncryption: true })
+                .catch(function () { throw new Error('Não foi possível abrir "' + a.nome + '" para juntar.'); })
+                .then(function (origem) { return destino.copyPages(origem, origem.getPageIndices()); })
+                .then(function (paginas) { paginas.forEach(function (pg) { destino.addPage(pg); }); });
+            });
+          }, Promise.resolve()).then(function () { return destino.save(); });
+        });
+      });
+    }
+
+    function montarRelatorios() {
+      const m = estado.montagem;
+      const itens = itensDaMontagem().filter(function (a) { return a.incluir; });
+      const ans = ansDaMontagem().filter(function (a) { return a.incluir; });
+      if (!itens.length && !ans.length) { mostrarMensagem('Marque "usar" em ao menos um arquivo.', 'erro'); return; }
+      if (ans.length > 1) { mostrarMensagem('Marque "usar" em só um PDF do ANS.', 'erro'); return; }
+      const tem = function (tipo) { return itens.some(function (a) { return a.tipo === tipo || a.tipo === 'consolidado'; }); };
+      const faltando = [];
+      if (!tem('logins')) faltando.push('logins (item 2)');
+      if (!tem('passivas')) faltando.push('mensagens passivas (item 4)');
+      if (!tem('ativas')) faltando.push('mensagens ativas (item 5)');
+      if (!ans.length) faltando.push('ANS (Fortics)');
+      if (faltando.length && !confirm('Não há PDF de: ' + faltando.join(', ') + '.\nMontar mesmo assim?')) return;
+      if (itens.concat(ans).some(function (a) { return !a.periodoOk; }) &&
+          !confirm('Há arquivo marcado com período de outro mês. Ele entra no PDF, mas seus valores não são aplicados.\nContinuar?')) return;
+
+      limparMensagem();
+      ocupado(true);
+      el('mont-montar').textContent = 'Montando…';
+      const nomes = nomesMontados(m.comp);
+      const baixados = [];
+      const juntar = itens.length
+        ? juntarPdfs(itens).then(function (bytes) { baixarPdf(bytes, nomes.itens); baixados.push(nomes.itens); })
+        : Promise.resolve();
+      juntar
+        .then(function () {
+          if (ans.length) { baixarPdf(base64ParaBytes(ans[0].base64), nomes.ans); baixados.push(nomes.ans); }
+          return chamar('interpretarPdfsMontados', m.comp,
+            itens.map(function (a) { return a.texto; }), ans.length ? ans[0].texto : '');
+        })
+        .then(function (r) {
+          r.arquivos = { itens: itens.length ? nomes.itens : '', ans: ans.length ? nomes.ans : '' };
+          estado.montagem = null;
+          el('lan-montagem').innerHTML =
+            '<div class="cabecalho-form"><h3>Relatórios montados</h3>' +
+              '<button type="button" class="botao pequeno" id="mont-fechar">Fechar</button></div>' +
+            '<p>Baixados no seu computador: <strong>' + esc(baixados.join(' e ')) + '</strong>.</p>' +
+            '<p class="dica">Próximo passo: salve os arquivos na pasta do mês no Drive e anexe-os no SEI. ' +
+              'Se o download não começou, veja se o navegador bloqueou downloads deste site.</p>';
+          el('lan-pdf-resultado').hidden = false;
+          aplicarLeitura(r);
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () {
+          ocupado(false);
+          if (estado.montagem) desenharMontagem(); // redesenha com os botões no estado certo
+        });
+    }
+
+    function acaoMontagem(ev) {
+      const alvo = ev.target;
+      if (alvo.id === 'mont-fechar') { el('lan-montagem').hidden = true; estado.montagem = null; return; }
+      if (alvo.id === 'mont-adicionar') { abrirEscolhaArquivos(); return; }
+      if (alvo.id === 'mont-montar') { montarRelatorios(); return; }
+      const tr = alvo.closest('tr[data-mont]');
+      if (!tr || !estado.montagem) return;
+      const lista = estado.montagem.arquivos;
+      const item = lista.find(function (a) { return String(a.id) === tr.dataset.mont; });
+      if (!item) return;
+      if (alvo.classList.contains('mont-incluir')) {
+        item.incluir = alvo.checked;
+      } else if (alvo.classList.contains('mont-tirar')) {
+        lista.splice(lista.indexOf(item), 1);
+      } else if (alvo.classList.contains('mont-subir') || alvo.classList.contains('mont-descer')) {
+        const itens = itensDaMontagem();
+        const i = itens.indexOf(item);
+        const j = alvo.classList.contains('mont-subir') ? i - 1 : i + 1;
+        if (j < 0 || j >= itens.length) return;
+        const a = lista.indexOf(item), b = lista.indexOf(itens[j]);
+        lista[a] = itens[j];
+        lista[b] = item;
+        estado.montagem.manual = true;
+      } else {
+        return;
+      }
+      desenharMontagem();
+    }
+
+
     function montarFormulario(c) {
       estado.atual = c;
       limparMensagem();
@@ -451,7 +717,10 @@
       el('lan-form').querySelectorAll('input, select').forEach(function (i) { i.disabled = !editavel; });
       el('lan-fonte-add').hidden = !editavel;
       el('lan-ler-pdfs').hidden = !editavel;
+      el('lan-montar').hidden = !editavel;
       el('lan-pdf-resultado').hidden = true;
+      el('lan-montagem').hidden = true;
+      estado.montagem = null;
       document.querySelectorAll('#lan-fontes .fte-remover').forEach(function (b) { b.hidden = !editavel; });
 
       document.querySelectorAll('#lan-form tr[data-item]').forEach(marcarAjuste);
@@ -597,6 +866,14 @@
 
     el('lan-fonte-add').addEventListener('click', adicionarFonte);
     el('lan-ler-pdfs').addEventListener('click', lerPdfs);
+    el('lan-montar').addEventListener('click', abrirEscolhaArquivos);
+    el('lan-arquivos').addEventListener('change', function () { if (this.files.length) adicionarArquivos(this.files); });
+    el('lan-montagem').addEventListener('click', acaoMontagem);
+    el('lan-montagem').addEventListener('dragover', function (ev) { ev.preventDefault(); });
+    el('lan-montagem').addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      if (ev.dataTransfer && ev.dataTransfer.files.length) adicionarArquivos(ev.dataTransfer.files);
+    });
     el('lan-pdf-resultado').addEventListener('click', function (ev) {
       if (ev.target.id === 'lan-pdf-fechar') el('lan-pdf-resultado').hidden = true;
     });

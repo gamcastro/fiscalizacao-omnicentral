@@ -2,7 +2,8 @@
  * LeituraPdf.js – Fase 5C: leitura dos PDFs da pasta do mês (relatório de itens e de ANS).
  * O Apps Script não lê PDF diretamente: cada PDF é convertido num Google Docs temporário
  * (criado pelo app e apagado logo em seguida) para extrair o texto.
- * Etapa atual: diagnóstico. A leitura no lançamento vem depois de validar o texto real.
+ * v0.10.0: também identifica os PDFs baixados do SZ.chat e da Fortics, enviados pelo navegador,
+ * para a montagem dos relatórios do mês (a junção é feita no navegador, com a pdf-lib).
  */
 
 const PADRAO_PDF_ITENS = /^relatorio_itens_omni_/i;
@@ -40,9 +41,13 @@ const NOMES_MESES_PT = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho
 
 /** Converte o PDF num Google Docs temporário, lê o texto e apaga o temporário. */
 function textoDoPdf_(arquivo) {
+  return textoDoBlob_(arquivo.getBlob(), arquivo.getName());
+}
+
+function textoDoBlob_(blob, nome) {
   const temporario = Drive.Files.create(
-    { name: 'tmp-fiscalizacao-' + arquivo.getName(), mimeType: MimeType.GOOGLE_DOCS },
-    arquivo.getBlob()
+    { name: 'tmp-fiscalizacao-' + nome, mimeType: MimeType.GOOGLE_DOCS },
+    blob
   );
   try {
     return DocumentApp.openById(temporario.id).getBody().getText();

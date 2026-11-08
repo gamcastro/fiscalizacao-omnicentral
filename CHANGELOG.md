@@ -3,6 +3,16 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.10.0] – 08/11/2026 – Montagem dos relatórios do mês (substitui o iLovePDF)
+
+### Incluído
+- Botão "Montar relatórios do mês" no lançamento: o fiscal escolhe (ou arrasta) os PDFs baixados do SZ.chat, um por relatório, e o PDF do ANS (Fortics), com qualquer nome.
+- O app identifica cada PDF pelo título e pelo período (texto extraído num Google Docs temporário, apagado em seguida; o PDF não fica guardado), põe na ordem dos itens (logins → mensagens passivas → mensagens ativas) e avisa sobre relatório de outro mês, Relatório de convocação (fora do contrato), PDF já consolidado ou arquivo não reconhecido. A ordem pode ser ajustada e cada arquivo pode ser desmarcado.
+- "Montar, baixar e preencher valores": junta os PDFs no navegador (biblioteca pdf-lib 1.17.1, carregada do cdnjs com verificação de integridade, só nesta tela), baixa `relatorio_itens_omni_<mês>_<ano>.pdf` e `relatorio_ans_<mês>_<ano>.pdf` e preenche o lançamento com os valores lidos, como o "Ler PDFs da pasta". Nada é gravado sem o fiscal salvar.
+
+### Observação
+- Os PDFs não são enviados a sites externos. Sem permissão nova do Google.
+
 ## [0.9.0] – 08/11/2026 – Fase 5C: Leitura dos PDFs da pasta do mês
 
 ### Incluído
