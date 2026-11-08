@@ -39,7 +39,11 @@
         <label class="largo">Link da pasta do mês no Drive
           <input type="text" id="lan-pasta" placeholder="https://drive.google.com/drive/folders/...">
         </label>
+        <div class="acoes acoes-form">
+          <button type="button" id="lan-ler-pdfs" class="botao">Ler PDFs da pasta</button>
+        </div>
       </div>
+      <div id="lan-pdf-resultado" class="resultado-pdf" hidden></div>
     </div>
 
     <div class="cartao">
@@ -327,6 +331,80 @@
       }, Promise.resolve());
     }
 
+    /* ---------- Leitura dos PDFs da pasta (sugestão; nada é gravado) ---------- */
+
+    function lerPdfs() {
+      const pasta = el('lan-pasta').value.trim();
+      if (!pasta) { mostrarMensagem('Informe o link da pasta do mês no Drive antes de ler os PDFs.', 'erro'); return; }
+      limparMensagem();
+      ocupado(true);
+      const painel = el('lan-pdf-resultado');
+      painel.hidden = false;
+      painel.innerHTML = '<p class="dica">Lendo os PDFs da pasta… isso pode levar alguns segundos.</p>';
+      chamar('lerPdfsDaPasta', el('lan-competencia').value, pasta)
+        .then(aplicarLeitura)
+        .catch(function (erro) { painel.hidden = true; mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    }
+
+    function aplicarLeitura(r) {
+      const painel = el('lan-pdf-resultado');
+      const temValores = !!(r.itens[2] || r.itens[4] || r.fontes.length || r.ans);
+      const jaDigitado = temValores && [2, 4].some(function (i) {
+          const tr = document.querySelector('#lan-itens tr[data-item="' + i + '"]');
+          return tr && tr.querySelector('.lan-qtd').value.trim() !== '';
+        }) || linhasFonte().some(function (tr) { return tr.querySelector('.fte-bruta').value.trim() !== ''; }) ||
+        el('lan-uptime').value.trim() !== '';
+      if (jaDigitado && !confirm('Substituir os valores já digitados pelos lidos dos PDFs?\nVocê confere tudo antes de salvar.')) {
+        painel.hidden = true;
+        return;
+      }
+
+      [2, 4].forEach(function (i) {
+        const v = r.itens[i];
+        const tr = document.querySelector('#lan-itens tr[data-item="' + i + '"]');
+        if (!v || !tr) return;
+        tr.querySelector('.lan-rel').value = qtdExibicao(v.valor);
+        const qtd = tr.querySelector('.lan-qtd');
+        qtd.value = qtdExibicao(v.valor);
+        qtd.dataset.espelho = qtd.value;
+        tr.querySelector('.lan-obs').value = ''; // relatório = medida: a observação de ajuste antiga não vale mais
+        marcarAjuste(tr);
+      });
+      if (r.fontes.length) {
+        el('lan-fontes').innerHTML = r.fontes.map(function (f) {
+          return linhaFonte({ fonteId: f.fonteId, fonteNome: f.fonteNome, quantidadeBruta: f.quantidadeBruta });
+        }).join('');
+        el('lan-sem-fontes').checked = false;
+      }
+      if (r.ans) {
+        el('lan-uptime').value = fmtDec(r.ans.uptime);
+        el('lan-minutos-manual').checked = false;
+      }
+      atualizarFontes();
+      atualizarAns();
+
+      const linhas = [];
+      const linha = function (rotulo, valor, trecho) {
+        linhas.push('<li><strong>' + esc(rotulo) + ':</strong> ' + esc(valor) +
+          (trecho ? ' <span class="dica">— “' + esc(trecho) + '”</span>' : '') + '</li>');
+      };
+      if (r.itens[2]) linha('Item 2 (logins únicos)', fmtInt(r.itens[2].valor), r.itens[2].trecho);
+      if (r.itens[4]) linha('Item 4 (mensagens passivas)', fmtInt(r.itens[4].valor), r.itens[4].trecho);
+      r.fontes.forEach(function (f) {
+        linha('Item 5 – ' + f.fonteNome + (f.fonteId ? '' : ' (fonte nova: "Outro")'), fmtInt(f.quantidadeBruta), f.trecho);
+      });
+      if (r.ans) linha('ANS (uptime)', fmtDec(r.ans.uptime) + '%', r.ans.trecho);
+      painel.innerHTML =
+        '<div class="cabecalho-form"><h3>Valores lidos dos PDFs</h3>' +
+          '<button type="button" class="botao pequeno" id="lan-pdf-fechar">Fechar</button></div>' +
+        '<p class="dica">Arquivos: ' + esc([r.arquivos.itens, r.arquivos.ans].filter(Boolean).join(' · ') || 'nenhum') + '</p>' +
+        (linhas.length ? '<ul class="lista-lidos">' + linhas.join('') + '</ul>' : '<p class="vazio">Nenhum valor encontrado.</p>') +
+        (r.avisos.length ? '<div class="avisos"><strong>Atenção</strong><ul>' +
+          r.avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul></div>' : '') +
+        '<p class="dica"><strong>Nada foi gravado.</strong> Confira os campos abaixo (exclusões do item 5, itens 1, 3 e eventuais) e clique em Salvar.</p>';
+    }
+
     function montarFormulario(c) {
       estado.atual = c;
       limparMensagem();
@@ -372,6 +450,8 @@
       el('lan-detalhe').hidden = !c;
       el('lan-form').querySelectorAll('input, select').forEach(function (i) { i.disabled = !editavel; });
       el('lan-fonte-add').hidden = !editavel;
+      el('lan-ler-pdfs').hidden = !editavel;
+      el('lan-pdf-resultado').hidden = true;
       document.querySelectorAll('#lan-fontes .fte-remover').forEach(function (b) { b.hidden = !editavel; });
 
       document.querySelectorAll('#lan-form tr[data-item]').forEach(marcarAjuste);
@@ -516,6 +596,10 @@
     el('lan-enviar').addEventListener('click', function () { salvar(true); });
 
     el('lan-fonte-add').addEventListener('click', adicionarFonte);
+    el('lan-ler-pdfs').addEventListener('click', lerPdfs);
+    el('lan-pdf-resultado').addEventListener('click', function (ev) {
+      if (ev.target.id === 'lan-pdf-fechar') el('lan-pdf-resultado').hidden = true;
+    });
     el('lan-fontes').addEventListener('click', function (ev) {
       const botao = ev.target.closest('.fte-remover');
       if (!botao) return;

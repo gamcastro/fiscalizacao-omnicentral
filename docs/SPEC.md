@@ -255,7 +255,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
   - `"timeZone": "America/Sao_Paulo"`, `"runtimeVersion": "V8"`;
   - `webapp`: `"executeAs": "USER_DEPLOYING"`, `"access": "DOMAIN"`.
   - Com acesso restrito ao domínio, `Session.getActiveUser().getEmail()` retorna o e-mail de quem acessa. Confirmar no primeiro teste.
-- Escopos mínimos: planilha atual e e-mail do usuário. Não pedir acesso a todo o Drive na v1.
+- Escopos: planilha atual e e-mail do usuário (v1); envio de e-mail e gatilhos (v0.6.0, lembrete); leitura do Drive, arquivos criados pelo app e Google Docs (v0.9.0, leitura dos PDFs – ampliação aprovada pelo fiscal técnico em 08/11/2026). O documento temporário de conversão é apagado logo após a leitura.
 - Todas as funções públicas do servidor começam com `requirePerfil_([...])`.
 - Gravações dentro de `LockService` e registradas no `Log`.
 - A função `setup()`, rodada uma vez pelo superadmin:
@@ -270,7 +270,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
 2. **Fase 2 – Lançamento:** tela de lançar/editar competência, cálculo do ANS, validações e Log. Carga do histórico de 2026-08 e 2026-09.
 3. **Fase 3 – Painel:** saldos por item, alertas e pendências, tabela de competências.
 4. **Fase 4 – SEI:** detalhe da competência, IDs, transições de status, textos do atesto e do despacho com "Copiar".
-5. **Fase 5 – Extras (opcional, decidir depois):** histórico com CSV, lembrete por e-mail no 1º dia útil, leitura automática dos PDFs da pasta do mês.
+5. **Fase 5 – Extras:** histórico com CSV (v0.5.0), lembrete por e-mail no 1º dia útil (v0.6.0) e leitura automática dos PDFs da pasta do mês (v0.9.0: o botão "Ler PDFs da pasta" no lançamento sugere itens 2 e 4, fontes do item 5 e uptime do ANS, com o trecho de origem; nada é gravado sem conferência; campanhas com "teste" no nome são só destacadas).
 
 6. **Fase 6 – Fontes variáveis do item 5 (pedida em 05/11/2026):**
    - criar as abas `FontesRelatorio` e `MedicaoFontes` pelo `setup()` (sem apagar nada) e carregar o catálogo e o histórico da seção 3.10;
