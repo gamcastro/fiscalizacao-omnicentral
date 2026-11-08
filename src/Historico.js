@@ -34,8 +34,7 @@ const HISTORICO_INICIAL = [
       { item: 3, quantidade: 1 },
       { item: 4, quantidade: 6360 },
       {
-        item: 5, quantidade: 5213, quantidadeRelatorio: 5215,
-        ajusteObs: 'Excluídas 2 mensagens da campanha "Teste Mudança Sessão".'
+        item: 5, quantidade: 5215, quantidadeRelatorio: 5215
       }
     ]
   }
@@ -49,7 +48,8 @@ const FONTES_HISTORICO = [
   { competencia: '2026-08', fontes: [{ fonteId: 'F-ENVIO-LOTE', quantidadeBruta: 69070, exclusoes: 0, exclusoesObs: '' }] },
   {
     competencia: '2026-09',
-    fontes: [{ fonteId: 'F-ENVIO-LOTE', quantidadeBruta: 5215, exclusoes: 2, exclusoesObs: 'campanha Teste Mudança Sessão' }]
+    // O atesto assinado em 10/10/2026 considerou 5.215 (sem exclusão) – decisão de 08/11/2026.
+    fontes: [{ fonteId: 'F-ENVIO-LOTE', quantidadeBruta: 5215, exclusoes: 0, exclusoesObs: '' }]
   }
 ];
 
