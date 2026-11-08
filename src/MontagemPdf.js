@@ -60,7 +60,7 @@ function interpretarPdfsMontados(competencia, textosItens, textoAns) {
   const resultado = { arquivos: {}, itens: {}, fontes: [], ans: null, avisos: [], nomes: nomesPdfsMontados_(comp) };
   const lista = (textosItens || []).map(String).filter(function (t) { return t.trim(); });
   if (lista.length) {
-    const itens = interpretarTextoItens_(lista.join('\n'), comp, listarFontesCatalogo_());
+    const itens = interpretarTextoItens_(lista, comp, listarFontesCatalogo_());
     resultado.itens = itens.itens;
     resultado.fontes = itens.fontes;
     resultado.avisos = resultado.avisos.concat(itens.avisos);
@@ -100,7 +100,7 @@ function classificarTextoPdf_(texto, comp, catalogo) {
     };
   }
 
-  const secoes = secoesRelatorio_(texto);
+  const secoes = secoesRelatorio_(texto, catalogo);
   if (!secoes.length) {
     return {
       tipo: 'desconhecido', rotuloTipo: ROTULO_TIPO_PDF.desconhecido, titulo: '', periodoTexto: '',

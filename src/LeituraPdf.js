@@ -104,20 +104,54 @@ function trechoPdf_(texto, inicio, fim) {
   return texto.slice(Math.max(0, inicio), Math.min(texto.length, fim)).replace(/\s+/g, ' ').trim();
 }
 
+/** Títulos de relatório que o app conhece, além dos do catálogo de fontes do item 5. */
+const TITULOS_FIXOS_PDF = ['Relatório de logins', 'Relatório de mensagens passivas', 'Relatório de convocação'];
+
+/** Títulos conhecidos, normalizados, do mais longo para o mais curto. */
+function titulosConhecidos_(catalogo) {
+  const lista = TITULOS_FIXOS_PDF.slice();
+  (catalogo || []).forEach(function (f) {
+    if (f.item !== ITEM_COM_FONTES) return;
+    lista.push(f.nome);
+    if (f.tituloInterno) lista.push(f.tituloInterno);
+  });
+  return lista.map(normalizarNomeFonte_)
+    .filter(function (t, i, a) { return /^relatorio de /.test(t) && a.indexOf(t) === i; })
+    .sort(function (a, b) { return b.length - a.length; });
+}
+
 /**
- * Divide o PDF consolidado em seções, uma por relatório ("Relatório de …").
- * Cada seção: { titulo, texto }.
+ * Divide o texto em seções, uma por relatório ("Relatório de …"). Cada seção: { titulo, texto }.
+ * O texto é tratado com os espaços e quebras de linha unificados, porque no PDF avulso o título
+ * pode quebrar em linhas ("Relatório de envio / em lote"). Título conhecido (fixo ou do catálogo)
+ * é reconhecido inteiro; título novo vai até a primeira palavra típica do corpo do relatório.
+ * A 1ª seção começa no início do texto: no PDF avulso, o período e a tabela podem vir antes do título.
  */
-function secoesRelatorio_(texto) {
+function secoesRelatorio_(texto, catalogo) {
+  const t = String(texto || '').replace(/\s+/g, ' ');
+  const conhecidos = titulosConhecidos_(catalogo);
   const marcas = [];
-  // O título vai até "Período do relatório" (pode quebrar em mais de uma linha, como
-  // "Relatório de mensagens / passivas" no PDF avulso). Sem "Período" por perto, vai até o fim da linha.
-  const re = /Relatório de (?:(?!Relatório)[\s\S]){0,100}?(?=\s*Período)|Relatório de [^\n]*?(?=\s*\n|\s{2,}|$)/g;
+  const re = /Relatório de /g;
   let m;
-  while ((m = re.exec(texto)) !== null) marcas.push({ titulo: m[0].replace(/\s+/g, ' ').trim(), inicio: m.index });
+  while ((m = re.exec(t)) !== null) {
+    const resto = t.slice(m.index, m.index + 160);
+    const restoNorm = normalizarNomeFonte_(resto);
+    const conhecido = conhecidos.find(function (k) {
+      return restoNorm.indexOf(k) === 0 && !/[a-z0-9]/.test(restoNorm.charAt(k.length));
+    });
+    let titulo;
+    if (conhecido) {
+      titulo = resto.slice(0, conhecido.length);
+    } else {
+      const f = resto.match(/^Relatório de .{0,80}?(?= Período| Total| E-?mail| Atendimentos| Equipes?| E q u| Título| Envio|$)/);
+      titulo = f ? f[0] : resto.split(' ').slice(0, 4).join(' ');
+    }
+    marcas.push({ titulo: titulo.trim(), inicio: m.index });
+    re.lastIndex = m.index + titulo.length;
+  }
   return marcas.map(function (marca, i) {
-    const fim = i + 1 < marcas.length ? marcas[i + 1].inicio : texto.length;
-    return { titulo: marca.titulo, texto: texto.slice(marca.inicio, fim) };
+    const fim = i + 1 < marcas.length ? marcas[i + 1].inicio : t.length;
+    return { titulo: marca.titulo, texto: t.slice(i === 0 ? 0 : marca.inicio, fim) };
   });
 }
 
@@ -149,11 +183,12 @@ function periodoConfere_(textoSecao, comp) {
 
 /**
  * Interpreta o PDF consolidado de itens (logins, fontes de mensagens ativas, mensagens passivas).
+ * texto: o texto do PDF consolidado ou uma lista de textos, um por PDF avulso (cada um dividido à parte).
  * catalogo: listarFontesCatalogo_() – usado para ligar cada seção a uma fonte do item 5.
  */
 function interpretarTextoItens_(texto, comp, catalogo) {
   const resultado = { itens: {}, fontes: [], avisos: [] };
-  const secoes = secoesRelatorio_(texto);
+  const secoes = [].concat.apply([], [].concat(texto).map(function (t) { return secoesRelatorio_(t, catalogo); }));
   if (!secoes.length) {
     resultado.avisos.push('Nenhum relatório reconhecido no PDF de itens.');
     return resultado;
@@ -176,7 +211,9 @@ function interpretarTextoItens_(texto, comp, catalogo) {
     const tipo = tipoDaSecao_(s);
 
     if (tipo === 'logins') {
-      const m = s.texto.match(/Total de logins únicos no\s+período\s+E-mail\s+([\d.]+)/);
+      // PDF consolidado: "Total de logins únicos no período E-mail 5"; avulso: "E-mail 5 Total de logins únicos no período".
+      const m = s.texto.match(/Total de logins\s+únicos no\s+período\s+(?:E-mail\s+)?([\d.]+)/) ||
+        s.texto.match(/E-mail\s+([\d.]+)\s+Total de logins/);
       const emails = (s.texto.match(/\d+\.\s+[^\s@]+@[^\s]+/g) || []).length;
       if (!m) { resultado.avisos.push('Logins: total de logins únicos não encontrado.'); return; }
       const valor = inteiroPdf_(m[1]);
