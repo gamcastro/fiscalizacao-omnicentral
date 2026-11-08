@@ -212,7 +212,8 @@ function interpretarTextoItens_(texto, comp, catalogo) {
 
     if (tipo === 'logins') {
       // PDF consolidado: "Total de logins únicos no período E-mail 5"; avulso: "E-mail 5 Total de logins únicos no período".
-      const m = s.texto.match(/Total de logins\s+[úu]nicos\s+no\s+per[íi]odo\s+(?:E-?mail\s+)?([\d.]+)/i) ||
+      // PDF avulso convertido pelo Google: "Total de logins E-mail únicos no período 5" (colunas intercaladas).
+      const m = s.texto.match(/Total de logins\s+(?:E-?mail\s+)?[úu]nicos\s+no\s+per[íi]odo\s+(?:E-?mail\s+)?([\d.]+)/i) ||
         s.texto.match(/E-?mail\s+([\d.]+)\s+Total de logins/i);
       const emails = (s.texto.match(/\d+\.\s+[^\s@]+@[^\s]+/g) || []).length;
       if (!m) {
