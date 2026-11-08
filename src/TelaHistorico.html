@@ -74,7 +74,7 @@
               .filter(function (it) { return m(it.item) > 0; })
               .map(function (it) { return 'It. ' + it.item + ': ' + fmtInt(m(it.item)); })
               .join(', ') || '—';
-            const ans = c.ansUptimePct === null ? '<span class="dica">—</span>'
+            const ans = c.ansUptimePct == null ? '<span class="dica">—</span>'
               : String(c.ansUptimePct).replace('.', ',') + '% · ' + c.ansMinutos + ' min ' +
                 (c.ansCumprido ? '<span class="etiqueta ok">OK</span>' : '<span class="etiqueta nok">Não</span>');
             return '<tr>' +

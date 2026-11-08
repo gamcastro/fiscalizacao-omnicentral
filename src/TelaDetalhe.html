@@ -113,7 +113,7 @@
           if (it.item === 5) linha += linhasFontesResumo(d.fontes || [], m);
           return linha;
         }).join('');
-      el('det-ans').innerHTML = '<strong>ANS:</strong> ' + (d.ansUptimePct === null ? 'não informado'
+      el('det-ans').innerHTML = '<strong>ANS:</strong> ' + (d.ansUptimePct == null ? 'não informado'
         : esc(String(d.ansUptimePct).replace('.', ',')) + '% · ' + d.ansMinutos + ' min ' +
           (d.ansCumprido ? '<span class="etiqueta ok">Cumprido</span>' : '<span class="etiqueta nok">Não cumprido</span>') +
           (d.ansObs ? ' <span class="dica">(' + esc(d.ansObs) + ')</span>' : ''));
