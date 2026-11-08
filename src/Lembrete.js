@@ -154,10 +154,10 @@ function montarEmailLembrete_(motivos, painel) {
     blocos.push({
       titulo: 'Hoje é o 1º dia útil: iniciar a competência ' + rotuloCompetencia_(inicio.competencia),
       itens: [
-        'Extrair os relatórios do SZ.chat (Relatórios → Premium): logins, envio em lote e mensagens passivas.',
+        'Extrair os relatórios do SZ.chat (Relatórios → Premium): logins, mensagens passivas e TODOS os relatórios de mensagens ativas/template do período (abrir os que tiverem "ativa", "template", "notificação", "HSM" ou "envio" no nome e baixar os que tiverem mensagens).',
         'Apurar o ANS no Status da Fortics (fortics.statuspage.io, "View historical uptime").',
-        'Consolidar os PDFs e salvar na pasta do mês no Drive.',
-        'Lançar as quantidades e o ANS no app e enviar para conferência.',
+        'Consolidar os relatórios de consumo num PDF (logins → fontes de mensagens ativas → mensagens passivas) e salvar com o do ANS na pasta do mês no Drive.',
+        'Lançar as quantidades (item 5 por fonte) e o ANS no app e enviar para conferência.',
         'Instruir o processo SEI: Relatório de Consumo de Itens, Relatório de Cumprimento do ANS, Atesto e Despacho.',
         'Encaminhar o processo à ' + unidade + ' e marcar como enviado para pagamento no app.'
       ]

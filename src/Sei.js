@@ -44,7 +44,18 @@ function avancarStatus(competencia, destino, dados) {
         '" para "' + (STATUS_ROTULOS[destino] || destino) + '".');
     }
 
-    if (destino === STATUS.EM_CONFERENCIA) exigirLancamentoCompleto_(registro, comp);
+    let confirmouFontes = false;
+    if (destino === STATUS.EM_CONFERENCIA) {
+      exigirLancamentoCompleto_(registro, comp);
+      // Trava de conferência do item 5 (regra 8): 0 ou 1 fonte exige confirmação explícita.
+      if (fontesDaCompetencia_(comp).length <= 1) {
+        if (!dados || dados.confirmouVerificacaoFontes !== true) {
+          throw new Error('O item 5 tem uma única fonte (ou nenhuma). Marque "' + TEXTO_VERIFICACAO_FONTES +
+            '" para enviar à conferência.');
+        }
+        confirmouFontes = true;
+      }
+    }
 
     const logs = [];
     if (dados && destino !== STATUS.EM_CONFERENCIA) aplicarDadosSei_(registro, dados, autor, logs);
@@ -60,7 +71,9 @@ function avancarStatus(competencia, destino, dados) {
     }
 
     atualizar_(ABAS.COMPETENCIAS, registro._linha, { status: destino, atualizadoEm: new Date(), atualizadoPor: autor.email });
-    logs.push(montarLog_('STATUS', ABAS.COMPETENCIAS, comp, { status: origem }, { status: destino }));
+    const depois = { status: destino };
+    if (confirmouFontes) depois.confirmacaoFontes = TEXTO_VERIFICACAO_FONTES;
+    logs.push(montarLog_('STATUS', ABAS.COMPETENCIAS, comp, { status: origem }, depois));
     incluir_(ABAS.LOG, logs);
     registro.status = destino;
     return resultadoSei_(registro, autor, 'Competência ' + rotulo + ': status alterado para "' + STATUS_ROTULOS[destino] + '".');
@@ -194,6 +207,8 @@ function detalheCompetencia_(registro, usuario) {
     enviarCogecon: ehFiscal && status === STATUS.INSTRUINDO_SEI,
     reabrir: ehSuperadmin && status === STATUS.ENVIADA_COGECON
   };
+  c.exigeConfirmacaoFontes = status === STATUS.RASCUNHO && c.fontes.length <= 1;
+  c.textoVerificacaoFontes = TEXTO_VERIFICACAO_FONTES;
   return c;
 }
 
@@ -219,6 +234,9 @@ function linhaDoTempo_(comp) {
       descricao = (depois.justificativa ? 'Reaberta: ' : 'Status: ') + '"' + (STATUS_ROTULOS[antes.status] || antes.status) +
         '" → "' + (STATUS_ROTULOS[depois.status] || depois.status) + '"' +
         (depois.justificativa ? '. Justificativa: ' + depois.justificativa : '') + '.';
+    }
+    if (descricao && depois.confirmacaoFontes) {
+      descricao += ' Confirmada a verificação de todos os relatórios de mensagens ativas/template.';
     }
     if (!descricao) return;
     const email = normalizarEmail_(l.email);

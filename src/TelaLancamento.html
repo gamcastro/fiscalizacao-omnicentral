@@ -56,6 +56,35 @@
         </thead>
         <tbody id="lan-itens"></tbody>
       </table>
+
+      <div id="lan-fontes-bloco" class="bloco-fontes">
+        <div class="cabecalho-form">
+          <h3 id="lan-fontes-titulo">Item 5 – fontes</h3>
+          <span id="lan-fontes-total" class="total-fontes"></span>
+        </div>
+        <p class="dica">Uma linha por relatório de mensagens ativas/template com movimento no mês. Exclusões (ex.: campanhas de teste) exigem observação.</p>
+        <p id="lan-fontes-legado" class="aviso-bloqueio" hidden></p>
+        <table class="tabela tabela-itens tabela-fontes">
+          <thead>
+            <tr>
+              <th>Fonte</th>
+              <th>Qtd. bruta</th>
+              <th>Exclusões</th>
+              <th>Observação das exclusões</th>
+              <th class="numero">Considerada</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="lan-fontes"></tbody>
+        </table>
+        <div class="acoes acoes-fontes">
+          <button type="button" id="lan-fonte-add" class="botao pequeno">+ Adicionar fonte</button>
+          <label class="check" id="lan-sem-fontes-label" hidden>
+            <input type="checkbox" id="lan-sem-fontes"> <span id="lan-sem-fontes-texto">Não houve mensagens ativas no período</span>
+          </label>
+        </div>
+      </div>
+
       <details id="lan-eventuais-bloco" class="bloco-eventuais">
         <summary>Itens eventuais (preencher só se houve consumo no mês)</summary>
         <table class="tabela tabela-itens">
@@ -83,6 +112,10 @@
       <p id="lan-ans-calculo" class="dica"></p>
     </div>
 
+    <label class="check confirmacao-fontes" id="lan-confirma-label" hidden>
+      <input type="checkbox" id="lan-confirma-fontes"> <span id="lan-confirma-texto"></span>
+    </label>
+
     <div class="acoes">
       <button type="button" id="lan-salvar" class="botao primario">Salvar rascunho</button>
       <button type="button" id="lan-enviar" class="botao">Enviar para conferência</button>
@@ -96,7 +129,11 @@
   (function () {
     window.TELAS = window.TELAS || {};
     const el = function (id) { return document.getElementById(id); };
-    const estado = { itens: [], competencias: [], ansLimiteMin: 45, mesLimite: '', atual: null };
+    const estado = {
+      itens: [], competencias: [], ansLimiteMin: 45, mesLimite: '', atual: null,
+      itemComFontes: 5, fontesCatalogo: [], textoVerificacao: '', textoSemMensagens: ''
+    };
+    const OUTRO = '__OUTRO';
 
     function rotuloComp(c) { return c ? c.slice(5) + '/' + c.slice(0, 4) : ''; }
     function fmtInt(n) { return Number(n).toLocaleString('pt-BR'); }
@@ -130,6 +167,10 @@
           estado.competencias = r.competencias;
           estado.ansLimiteMin = r.ansLimiteMin;
           estado.mesLimite = r.mesLimite;
+          estado.itemComFontes = r.itemComFontes;
+          estado.fontesCatalogo = r.fontesCatalogo;
+          estado.textoVerificacao = r.textoVerificacaoFontes;
+          estado.textoSemMensagens = r.textoSemMensagensAtivas;
           renderizarLista();
         })
         .catch(function (erro) {
@@ -174,6 +215,118 @@
       '</tr>';
     }
 
+    /* ---------- Item 5 por fontes ---------- */
+
+    function opcoesFonte(selecionada) {
+      return estado.fontesCatalogo
+        .filter(function (f) { return f.ativo || f.id === selecionada; })
+        .map(function (f) {
+          return '<option value="' + esc(f.id) + '"' + (f.id === selecionada ? ' selected' : '') + '>' +
+            esc(f.nome) + (f.ativo ? '' : ' (inativa)') + '</option>';
+        }).join('') +
+        '<option value="' + OUTRO + '"' + (selecionada === OUTRO ? ' selected' : '') + '>Outro (informar nome)</option>';
+    }
+
+    /** f: { fonteId, fonteNome, quantidadeBruta, exclusoes, exclusoesObs } */
+    function linhaFonte(f) {
+      const sel = f.fonteId || OUTRO;
+      const num = function (v) { return vazio(v) ? '' : qtdExibicao(v); };
+      return '<tr class="linha-fonte">' +
+        '<td><select class="fte-sel">' + opcoesFonte(sel) + '</select>' +
+          '<input type="text" class="fte-nome" placeholder="Nome do relatório, como aparece em Relatórios Premium" value="' +
+            esc(sel === OUTRO ? (f.fonteNome || '') : '') + '"' + (sel === OUTRO ? '' : ' hidden') + '></td>' +
+        '<td><input type="text" inputmode="numeric" class="fte-num fte-bruta" value="' + esc(num(f.quantidadeBruta)) + '"></td>' +
+        '<td><input type="text" inputmode="numeric" class="fte-num fte-excl" value="' + esc(f.exclusoes ? num(f.exclusoes) : '') + '"></td>' +
+        '<td><input type="text" class="fte-obs" value="' + esc(f.exclusoesObs || '') + '"></td>' +
+        '<td class="numero fte-cons">—</td>' +
+        '<td class="acoes-linha"><button type="button" class="botao pequeno fte-remover" title="Remover esta fonte">×</button></td>' +
+      '</tr>';
+    }
+
+    function linhasFonte() { return Array.prototype.slice.call(document.querySelectorAll('#lan-fontes tr.linha-fonte')); }
+    function inteiro(v) { const s = semMilhar(v); return /^\d+$/.test(s) ? Number(s) : null; }
+
+    /** Recalcula considerada por linha, total do item 5, destaques e as caixas de confirmação. */
+    function atualizarFontes() {
+      let total = 0, bruto = 0, validas = 0;
+      linhasFonte().forEach(function (tr) {
+        const b = inteiro(tr.querySelector('.fte-bruta').value);
+        const e = inteiro(tr.querySelector('.fte-excl').value) || 0;
+        const obs = tr.querySelector('.fte-obs');
+        tr.querySelector('.fte-cons').textContent = b === null ? '—' : fmtInt(b - e);
+        obs.classList.toggle('obrigatorio', e > 0 && obs.value.trim() === '');
+        obs.placeholder = e > 0 ? 'Obrigatória: motivo das exclusões' : '';
+        if (b !== null) { validas++; total += b - e; bruto += b; }
+      });
+      el('lan-fontes-total').innerHTML = 'Total do item ' + estado.itemComFontes + ': <strong>' + fmtInt(total) + '</strong>' +
+        (bruto !== total ? ' <span class="dica">(bruto ' + fmtInt(bruto) + ')</span>' : '') +
+        ' <span class="dica">· ' + validas + ' fonte(s)</span>';
+      el('lan-sem-fontes-label').hidden = validas > 0;
+      if (validas > 0) el('lan-sem-fontes').checked = false;
+      const podeEnviar = !el('lan-enviar').hidden;
+      el('lan-confirma-label').hidden = !(podeEnviar && validas <= 1);
+      return validas;
+    }
+
+    function montarFontes(c, medicoes) {
+      const m5 = medicoes[estado.itemComFontes];
+      const semMensagens = !!(m5 && String(m5.ajusteObs || '').indexOf(estado.textoSemMensagens) === 0);
+      let linhas;
+      if (c && c.fontes && c.fontes.length) {
+        linhas = c.fontes;
+      } else if (semMensagens) {
+        linhas = [];
+      } else {
+        linhas = estado.fontesCatalogo.filter(function (f) { return f.ativo; })
+          .map(function (f) { return { fonteId: f.id }; });
+      }
+      el('lan-fontes').innerHTML = linhas.map(linhaFonte).join('');
+      el('lan-sem-fontes').checked = semMensagens;
+      el('lan-sem-fontes-texto').textContent = estado.textoSemMensagens;
+      el('lan-confirma-texto').textContent = estado.textoVerificacao;
+      el('lan-confirma-fontes').checked = false;
+      const legado = c && (!c.fontes || !c.fontes.length) && m5 && !semMensagens;
+      el('lan-fontes-legado').hidden = !legado;
+      if (legado) {
+        el('lan-fontes-legado').textContent = 'Esta competência foi lançada sem detalhamento por fonte (item ' +
+          estado.itemComFontes + ' = ' + fmtInt(m5.quantidade) + '). Para salvar, informe as fontes.';
+      }
+    }
+
+    function coletarFontes() {
+      return linhasFonte().map(function (tr) {
+        const sel = tr.querySelector('.fte-sel').value;
+        return {
+          fonteId: sel === OUTRO ? '' : sel,
+          fonteNome: sel === OUTRO ? tr.querySelector('.fte-nome').value.trim() : '',
+          quantidadeBruta: tr.querySelector('.fte-bruta').value.trim(),
+          exclusoes: tr.querySelector('.fte-excl').value.trim(),
+          exclusoesObs: tr.querySelector('.fte-obs').value
+        };
+      });
+    }
+
+    function adicionarFonte() {
+      const usadas = linhasFonte().map(function (tr) { return tr.querySelector('.fte-sel').value; });
+      const livre = estado.fontesCatalogo.find(function (f) { return f.ativo && usadas.indexOf(f.id) < 0; });
+      el('lan-fontes').insertAdjacentHTML('beforeend', linhaFonte({ fonteId: livre ? livre.id : '' }));
+      atualizarFontes();
+      const nova = linhasFonte().pop();
+      (livre ? nova.querySelector('.fte-bruta') : nova.querySelector('.fte-nome')).focus();
+    }
+
+    /** Depois de salvar, oferece incluir no catálogo as fontes informadas como "Outro". */
+    function oferecerCatalogo(nomes, comp) {
+      return nomes.reduce(function (p, nome) {
+        return p.then(function () {
+          if (!confirm('A fonte "' + nome + '" não está no catálogo.\nIncluir no catálogo para padronizar o nome nos próximos meses?')) return;
+          return chamar('incluirFonteCatalogo', nome, comp)
+            .then(function (r) { mostrarMensagem(r.mensagem, 'sucesso'); })
+            .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); });
+        });
+      }, Promise.resolve());
+    }
+
     function montarFormulario(c) {
       estado.atual = c;
       limparMensagem();
@@ -197,7 +350,10 @@
 
       const medicoes = {};
       (c ? c.medicoes : []).forEach(function (m) { medicoes[m.item] = m; });
-      const fixosEConsumo = estado.itens.filter(function (it) { return it.tipo !== 'EVENTUAL'; });
+      const fixosEConsumo = estado.itens.filter(function (it) { return it.tipo !== 'EVENTUAL' && it.item !== estado.itemComFontes; });
+      const itemFontes = estado.itens.find(function (it) { return it.item === estado.itemComFontes; });
+      el('lan-fontes-titulo').textContent = 'Item ' + estado.itemComFontes + ' – ' + (itemFontes ? itemFontes.descricao : '') + ' (por fonte)';
+      montarFontes(c, medicoes);
       const eventuais = estado.itens.filter(function (it) { return it.tipo === 'EVENTUAL'; });
       el('lan-itens').innerHTML = fixosEConsumo.map(function (it) { return linhaItem(it, medicoes[it.item]); }).join('');
       el('lan-eventuais').innerHTML = eventuais.map(function (it) { return linhaItem(it, medicoes[it.item]); }).join('');
@@ -214,11 +370,12 @@
       el('lan-salvar').hidden = !editavel;
       el('lan-enviar').hidden = !editavel || !rascunho;
       el('lan-detalhe').hidden = !c;
-      el('lan-form').querySelectorAll('input').forEach(function (i) {
-        if (!editavel) i.disabled = true; else i.disabled = false;
-      });
+      el('lan-form').querySelectorAll('input, select').forEach(function (i) { i.disabled = !editavel; });
+      el('lan-fonte-add').hidden = !editavel;
+      document.querySelectorAll('#lan-fontes .fte-remover').forEach(function (b) { b.hidden = !editavel; });
 
       document.querySelectorAll('#lan-form tr[data-item]').forEach(marcarAjuste);
+      atualizarFontes();
       atualizarAns();
       window.scrollTo(0, 0);
     }
@@ -296,10 +453,14 @@
           ajusteObs: tr.querySelector('.lan-obs').value
         });
       });
+      const validas = atualizarFontes();
       return {
         novo: !estado.atual,
         competencia: el('lan-competencia').value,
         itens: itens,
+        fontes: coletarFontes(),
+        semMensagensAtivas: validas === 0 && el('lan-sem-fontes').checked,
+        confirmouVerificacaoFontes: el('lan-confirma-fontes').checked,
         ansUptimePct: el('lan-uptime').value.trim(),
         ansMinutosManual: el('lan-minutos-manual').checked,
         ansMinutos: el('lan-minutos').value.trim(),
@@ -332,6 +493,12 @@
           montarFormulario(r.competencia);
           mostrarMensagem(r.mensagem, 'sucesso');
           mostrarAvisos(r.avisos);
+          if (!r.fontesOutro || !r.fontesOutro.length) return;
+          // Fontes "Outro": oferece incluir no catálogo e recarrega catálogo e competência.
+          return oferecerCatalogo(r.fontesOutro, r.competencia.competencia)
+            .then(function () { return chamar('getDadosLancamento'); })
+            .then(function (d) { estado.fontesCatalogo = d.fontesCatalogo; return chamar('getCompetencia', r.competencia.competencia); })
+            .then(montarFormulario);
         })
         .catch(function (erro) {
           mostrarMensagem(erro.message, 'erro');
@@ -347,6 +514,25 @@
     el('lan-detalhe').addEventListener('click', function () { irPara('detalhe', { competencia: estado.atual.competencia }); });
     el('lan-salvar').addEventListener('click', function () { salvar(false); });
     el('lan-enviar').addEventListener('click', function () { salvar(true); });
+
+    el('lan-fonte-add').addEventListener('click', adicionarFonte);
+    el('lan-fontes').addEventListener('click', function (ev) {
+      const botao = ev.target.closest('.fte-remover');
+      if (!botao) return;
+      botao.closest('tr').remove();
+      atualizarFontes();
+    });
+    el('lan-fontes').addEventListener('change', function (ev) {
+      if (!ev.target.classList.contains('fte-sel')) return;
+      const nome = ev.target.closest('tr').querySelector('.fte-nome');
+      nome.hidden = ev.target.value !== OUTRO;
+      if (!nome.hidden) nome.focus();
+      atualizarFontes();
+    });
+    el('lan-fontes').addEventListener('input', atualizarFontes);
+    el('lan-fontes').addEventListener('focusout', function (ev) {
+      if (ev.target.classList.contains('fte-num')) { ev.target.value = qtdExibicao(ev.target.value); atualizarFontes(); }
+    });
 
     function abrirCompetencia(comp) {
       limparMensagem();

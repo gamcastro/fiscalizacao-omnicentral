@@ -26,7 +26,11 @@ function getDadosLancamento() {
     itens: listarItens_(),
     competencias: listarResumoCompetencias_(),
     ansLimiteMin: numeroConfig_(lerConfig_(), 'ANS_LIMITE_MIN'),
-    mesLimite: mesAnterior_(mesAtual_())
+    mesLimite: mesAnterior_(mesAtual_()),
+    itemComFontes: ITEM_COM_FONTES,
+    fontesCatalogo: listarFontesCatalogo_().filter(function (f) { return f.item === ITEM_COM_FONTES; }),
+    textoVerificacaoFontes: TEXTO_VERIFICACAO_FONTES,
+    textoSemMensagensAtivas: TEXTO_SEM_MENSAGENS_ATIVAS
   };
 }
 
@@ -41,7 +45,10 @@ function getCompetencia(competencia) {
 /**
  * Cria ou edita uma competência e suas medições.
  * dados: { novo, competencia, itens: [{ item, quantidadeRelatorio, quantidade, ajusteObs }],
+ *          fontes: [{ fonteId, fonteNome, quantidadeBruta, exclusoes, exclusoesObs }] (item 5),
+ *          semMensagensAtivas, confirmouVerificacaoFontes,
  *          ansUptimePct, ansMinutosManual, ansMinutos, ansObs, pastaDrive }
+ * O item 5 vem sempre das fontes (o que vier em `itens` para ele é ignorado).
  * enviarConferencia: true muda o status de RASCUNHO para EM_CONFERENCIA.
  */
 function salvarCompetencia(dados, enviarConferencia) {
@@ -70,7 +77,19 @@ function salvarCompetencia(dados, enviarConferencia) {
     const config = lerConfig_();
     const limiteAns = numeroConfig_(config, 'ANS_LIMITE_MIN');
     const medicoesExistentes = medicoesDa_(comp);
-    const medicoes = validarMedicoes_(dados.itens, listarItens_(), medicoesExistentes, enviar);
+
+    // Item 5: soma das fontes (regra 8)
+    const fontes = validarFontes_(dados.fontes, listarFontesCatalogo_());
+    const entrada5 = entradaItem5_(fontes, dados, medicoesExistentes, enviar);
+    const confirmouFontes = enviar && fontes.length <= 1;
+    if (confirmouFontes && dados.confirmouVerificacaoFontes !== true) {
+      throw new Error('O item 5 tem ' + (fontes.length ? 'uma única fonte' : 'nenhuma fonte') +
+        '. Para enviar à conferência, marque "' + TEXTO_VERIFICACAO_FONTES + '".');
+    }
+    const itensEntrada = (Array.isArray(dados.itens) ? dados.itens : [])
+      .filter(function (e) { return e && Number(e.item) !== ITEM_COM_FONTES; })
+      .concat(entrada5 ? [entrada5] : []);
+    const medicoes = validarMedicoes_(itensEntrada, listarItens_(), medicoesExistentes, enviar);
     const ans = validarAns_(dados, comp, limiteAns, enviar);
     const pastaDrive = validarPastaDrive_(dados.pastaDrive);
 
@@ -93,7 +112,8 @@ function salvarCompetencia(dados, enviarConferencia) {
         criadoEm: agora, criadoPor: autor.email, atualizadoEm: agora, atualizadoPor: autor.email
       });
       incluir_(ABAS.COMPETENCIAS, [nova]);
-      logs.push(montarLog_('CRIAR', ABAS.COMPETENCIAS, comp, null, nova));
+      logs.push(montarLog_('CRIAR', ABAS.COMPETENCIAS, comp, null,
+        confirmouFontes ? Object.assign({ confirmacaoFontes: TEXTO_VERIFICACAO_FONTES }, nova) : nova));
     } else {
       const mudancas = diferencas_(existente, campos);
       const mudouStatus = statusNovo !== statusAnterior;
@@ -106,7 +126,9 @@ function salvarCompetencia(dados, enviarConferencia) {
         logs.push(montarLog_('EDITAR', ABAS.COMPETENCIAS, comp, selecionar_(existente, Object.keys(mudancas)), mudancas));
       }
       if (mudouStatus) {
-        logs.push(montarLog_('STATUS', ABAS.COMPETENCIAS, comp, { status: statusAnterior }, { status: statusNovo }));
+        const depois = { status: statusNovo };
+        if (confirmouFontes) depois.confirmacaoFontes = TEXTO_VERIFICACAO_FONTES;
+        logs.push(montarLog_('STATUS', ABAS.COMPETENCIAS, comp, { status: statusAnterior }, depois));
       }
     }
 
@@ -131,6 +153,7 @@ function salvarCompetencia(dados, enviarConferencia) {
       logs.push(montarLog_('EDITAR', ABAS.MEDICOES, chave, selecionar_(atual, Object.keys(mudancas)), mudancas));
     });
     incluir_(ABAS.MEDICOES, novas);
+    if (entrada5) gravarFontes_(comp, fontes, autor, agora, logs);
     incluir_(ABAS.LOG, logs);
 
     let mensagem;
@@ -143,9 +166,29 @@ function salvarCompetencia(dados, enviarConferencia) {
       mensagem: mensagem,
       avisos: avisosDaCompetencia_(vigencia.id, config, ans, limiteAns),
       competencia: competenciaParaCliente_(buscarCompetencia_(comp)),
-      competencias: listarResumoCompetencias_()
+      competencias: listarResumoCompetencias_(),
+      fontesOutro: fontes.filter(function (f) { return !f.fonteId; }).map(function (f) { return f.fonteNome; })
     };
   });
+}
+
+/**
+ * Linha do item 5 para validarMedicoes_, calculada a partir das fontes.
+ * Retorna null quando o item 5 fica em branco (só permitido em rascunho ainda sem item 5).
+ */
+function entradaItem5_(fontes, dados, medicoesExistentes, completo) {
+  if (fontes.length) {
+    const r = resumoFontes_(fontes);
+    return { item: ITEM_COM_FONTES, quantidade: r.total, quantidadeRelatorio: r.bruto, ajusteObs: r.ajusteObs };
+  }
+  if (dados.semMensagensAtivas === true) {
+    return { item: ITEM_COM_FONTES, quantidade: 0, quantidadeRelatorio: 0, ajusteObs: TEXTO_SEM_MENSAGENS_ATIVAS + ' (confirmado no lançamento).' };
+  }
+  const jaLancado = medicoesExistentes.some(function (m) { return Number(m.item) === ITEM_COM_FONTES; });
+  if (completo || jaLancado) {
+    throw new Error('Item 5: informe ao menos uma fonte ou marque "' + TEXTO_SEM_MENSAGENS_ATIVAS + '".');
+  }
+  return null;
 }
 
 /* ---------- Leitura ---------- */
@@ -202,6 +245,7 @@ function competenciaParaCliente_(registro) {
   c.ansCumprido = registro.ansCumprido === '' ? null : ehVerdadeiro_(registro.ansCumprido);
   c.ansMinutosCalculado = c.ansUptimePct === null ? null : calcularMinutosAns_(c.ansUptimePct, comp);
   c.editavel = registro.status !== STATUS.ENVIADA_COGECON;
+  c.fontes = fontesDaCompetencia_(comp).map(fonteParaCliente_);
   c.medicoes = medicoesDa_(comp).map(function (m) {
     return {
       item: Number(m.item),

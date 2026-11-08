@@ -3,6 +3,22 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.8.0] – 05/11/2026 – Fase 6: Fontes variáveis do item 5
+
+### Incluído
+- Abas `FontesRelatorio` (catálogo, com `F-ENVIO-LOTE` e `F-MSG-ATIVA`) e `MedicaoFontes` (detalhe por competência), criadas pelo `setup()`.
+- Lançamento: o item 5 virou uma lista de fontes (fonte do catálogo ou "Outro", quantidade bruta, exclusões com observação, considerada), com "+ Adicionar fonte", remoção de linha e total recalculado na hora. Competência nova já vem com uma linha por fonte ativa.
+- Regra 8: soma das consideradas, sem fonte repetida, exclusões ≤ bruta e com observação, confirmação "Não houve mensagens ativas no período" quando não há fonte, e trava de conferência (0 ou 1 fonte exige confirmar a verificação de todos os relatórios), registrada no `Log`.
+- Fonte "Outro": depois de salvar, o app oferece incluí-la no catálogo (fiscal técnico ou superadmin).
+- Detalhe: parcelas do item 5 por fonte; competências antigas mostram "sem detalhamento por fonte".
+- Configurações: aba "Fontes de relatório" (incluir, editar, ativar/desativar; fonte nunca é apagada).
+- `carregarFontesHistorico()`: detalhe de 08/2026 e 09/2026 (confere com o total já lançado; 10/2026 será lançada pela tela nova).
+- CSV do histórico: coluna "Item 5 – fontes". E-mail de lembrete com o checklist novo (todos os relatórios de mensagens ativas/template).
+
+### Alterado
+- Fonte removida de uma competência ainda não enviada é excluída de `MedicaoFontes`, com `EXCLUIR` no `Log` (decisão de 05/11/2026). Atesto, despacho, painel e saldo continuam usando o total do item 5.
+- SPEC e CLAUDE.md atualizados pelo fiscal técnico com a regra do item 5 por fontes.
+
 ## [0.7.0] – 10/10/2026 – Tela de Configurações
 
 ### Incluído

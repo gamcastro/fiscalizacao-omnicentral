@@ -47,6 +47,7 @@ function montarConfiguracoes_() {
     }),
     vigencias: vigencias,
     itens: listarItens_(),
+    fontes: listarFontesConfig_(),
     feriados: listar_(ABAS.FERIADOS)
       .map(function (f) { return { data: dataIso_(f.data), descricao: String(f.descricao || '') }; })
       .filter(function (f) { return f.data; })
@@ -59,6 +60,18 @@ function montarConfiguracoes_() {
       homologacao: ehHomologacao_()
     }
   };
+}
+
+/** Catálogo de fontes com o número de competências que usam cada uma. */
+function listarFontesConfig_() {
+  const uso = {};
+  if (abaFontesExiste_(ABAS.MED_FONTES)) listar_(ABAS.MED_FONTES).forEach(function (f) {
+    const id = String(f.fonteId || '').trim();
+    if (id) uso[id] = (uso[id] || 0) + 1;
+  });
+  return listarFontesCatalogo_()
+    .map(function (f) { return Object.assign({ usos: uso[f.id] || 0 }, f); })
+    .sort(function (a, b) { return a.item - b.item || a.nome.localeCompare(b.nome, 'pt-BR'); });
 }
 
 function listarVigenciasConfig_() {

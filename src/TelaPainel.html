@@ -117,7 +117,7 @@
       // Competências
       el('pai-competencias').innerHTML = dados.competencias.length
         ? dados.competencias.map(function (c) {
-            const ans = c.ansUptimePct === null
+            const ans = c.ansUptimePct == null
               ? '<span class="dica">não informado</span>'
               : String(c.ansUptimePct).replace('.', ',') + '% · ' + c.ansMinutos + ' min ' +
                 (c.ansCumprido ? '<span class="etiqueta ok">Cumprido</span>' : '<span class="etiqueta nok">Não cumprido</span>');

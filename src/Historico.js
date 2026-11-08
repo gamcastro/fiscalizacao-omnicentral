@@ -41,6 +41,69 @@ const HISTORICO_INICIAL = [
   }
 ];
 
+/**
+ * Detalhe do item 5 por fonte das competências já lançadas (SPEC 3.10).
+ * 2026-10 não está aqui: não foi lançada antes da Fase 6 e será lançada já com as fontes.
+ */
+const FONTES_HISTORICO = [
+  { competencia: '2026-08', fontes: [{ fonteId: 'F-ENVIO-LOTE', quantidadeBruta: 69070, exclusoes: 0, exclusoesObs: '' }] },
+  {
+    competencia: '2026-09',
+    fontes: [{ fonteId: 'F-ENVIO-LOTE', quantidadeBruta: 5215, exclusoes: 2, exclusoesObs: 'campanha Teste Mudança Sessão' }]
+  }
+];
+
+/**
+ * Rodar uma vez pelo editor (superadmin), depois do setup() da Fase 6.
+ * Só grava se a competência existir, ainda não tiver fontes e o total bater com a aba Medicoes.
+ * Não altera Medicoes nem o status (vale também para competências já enviadas).
+ */
+function carregarFontesHistorico() {
+  const autor = requirePerfil_([PERFIS.SUPERADMIN]);
+  const resumo = comLock_(function () {
+    const resumo = [];
+    const logs = [];
+    const catalogo = {};
+    listarFontesCatalogo_().forEach(function (f) { catalogo[f.id] = f; });
+    const agora = new Date();
+
+    FONTES_HISTORICO.forEach(function (h) {
+      const comp = h.competencia;
+      if (!buscarCompetencia_(comp)) { resumo.push(comp + ': competência não existe, nada incluído.'); return; }
+      if (fontesDaCompetencia_(comp).length) { resumo.push(comp + ': já tinha fontes, nada incluído.'); return; }
+      const faltando = h.fontes.filter(function (f) { return !catalogo[f.fonteId]; });
+      if (faltando.length) { resumo.push(comp + ': ATENÇÃO, fonte fora do catálogo (rode setup()). Nada incluído.'); return; }
+
+      const linhas = h.fontes.map(function (f) {
+        return {
+          competencia: comp, item: ITEM_COM_FONTES, fonteId: f.fonteId, fonteNome: catalogo[f.fonteId].nome,
+          quantidadeBruta: f.quantidadeBruta, exclusoes: f.exclusoes, exclusoesObs: f.exclusoesObs,
+          quantidadeConsiderada: f.quantidadeBruta - f.exclusoes,
+          criadoEm: agora, criadoPor: autor.email, atualizadoEm: agora, atualizadoPor: autor.email
+        };
+      });
+      const total = linhas.reduce(function (s, l) { return s + l.quantidadeConsiderada; }, 0);
+      const medicao = medicoesDa_(comp).find(function (m) { return Number(m.item) === ITEM_COM_FONTES; });
+      if (!medicao || Number(medicao.quantidade) !== total) {
+        resumo.push(comp + ': ATENÇÃO, o total das fontes (' + formatarInteiro_(total) + ') não bate com o item 5 lançado (' +
+          (medicao ? formatarInteiro_(Number(medicao.quantidade)) : 'sem item 5') + '). Nada incluído.');
+        return;
+      }
+      incluir_(ABAS.MED_FONTES, linhas);
+      linhas.forEach(function (l) {
+        logs.push(montarLog_('CRIAR', ABAS.MED_FONTES, comp + '/' + ITEM_COM_FONTES + '/' + l.fonteId, null, l));
+      });
+      resumo.push(comp + ': ' + linhas.length + ' fonte(s) incluída(s), total ' + formatarInteiro_(total) + '.');
+    });
+
+    incluir_(ABAS.LOG, logs);
+    resumo.push('Log: ' + logs.length + ' registro(s) gravado(s).');
+    return resumo;
+  });
+  console.log(resumo.join('\n'));
+  return resumo;
+}
+
 function carregarHistorico() {
   const autor = requirePerfil_([PERFIS.SUPERADMIN]);
   const resumo = comLock_(function () {

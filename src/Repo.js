@@ -14,6 +14,8 @@ const ABAS = {
   PRECOS: 'PrecosReferencia',
   COMPETENCIAS: 'Competencias',
   MEDICOES: 'Medicoes',
+  FONTES: 'FontesRelatorio',
+  MED_FONTES: 'MedicaoFontes',
   FERIADOS: 'Feriados',
   LOG: 'Log'
 };
@@ -31,6 +33,9 @@ const CABECALHOS = {
     'cienteGestorPor', 'cienteGestorEm', 'obs', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
   Medicoes: ['competencia', 'item', 'quantidade', 'quantidadeRelatorio', 'ajusteObs',
     'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  FontesRelatorio: ['id', 'item', 'nome', 'tituloInterno', 'ativo', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  MedicaoFontes: ['competencia', 'item', 'fonteId', 'fonteNome', 'quantidadeBruta', 'exclusoes', 'exclusoesObs',
+    'quantidadeConsiderada', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
   Feriados: ['data', 'descricao'],
   Log: ['timestamp', 'email', 'acao', 'entidade', 'chave', 'antes', 'depois']
 };

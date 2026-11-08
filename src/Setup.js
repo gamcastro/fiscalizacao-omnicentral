@@ -13,6 +13,8 @@ const FORMATOS_SETUP = {
     criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm'
   },
   Medicoes: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  FontesRelatorio: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  MedicaoFontes: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
   Feriados: { data: 'dd/mm/yyyy' },
   Log: { timestamp: 'dd/mm/yyyy hh:mm:ss' }
 };
@@ -90,8 +92,14 @@ const SUPERADMIN_INICIAL = {
   condicao: 'Titular'
 };
 
+/** Catálogo inicial de fontes do item 5 (SPEC 3.11). Carimbo de criação é incluído no setup(). */
+const FONTES_INICIAIS = [
+  { id: 'F-ENVIO-LOTE', item: 5, nome: 'Relatório de envio em lote', tituloInterno: 'Relatório de envio em lote', ativo: true },
+  { id: 'F-MSG-ATIVA', item: 5, nome: 'Relatório Mensagem ativa', tituloInterno: 'Relatório de mensagens de notificação ativa', ativo: true }
+];
+
 /** Abas que recebem os dados iniciais só quando estão sem nenhuma linha de dados. */
-const ABAS_CARGA_SE_VAZIA = ['Itens', 'Vigencias', 'QuantidadesContratadas', 'PrecosReferencia'];
+const ABAS_CARGA_SE_VAZIA = ['Itens', 'Vigencias', 'QuantidadesContratadas', 'PrecosReferencia', 'FontesRelatorio'];
 
 function setup() {
   const resumo = comLock_(function () {
@@ -159,8 +167,16 @@ function setup() {
         resumo.push(nome + ': já tinha dados, nada incluído.');
         return;
       }
-      incluirComLog_(nome, DADOS_INICIAIS[nome], logs);
-      resumo.push(nome + ': ' + DADOS_INICIAIS[nome].length + ' linha(s) incluída(s).');
+      let linhas = DADOS_INICIAIS[nome];
+      if (nome === ABAS.FONTES) {
+        const agora = new Date();
+        const autor = emailAtual_() || SUPERADMIN_INICIAL.email;
+        linhas = FONTES_INICIAIS.map(function (f) {
+          return Object.assign({}, f, { criadoEm: agora, criadoPor: autor, atualizadoEm: agora, atualizadoPor: autor });
+        });
+      }
+      incluirComLog_(nome, linhas, logs);
+      resumo.push(nome + ': ' + linhas.length + ' linha(s) incluída(s).');
     });
 
     incluir_(ABAS.LOG, logs);
@@ -346,6 +362,7 @@ function chaveSetup_(nome, o) {
     case ABAS.USUARIOS: return o.email;
     case ABAS.ITENS: return o.item;
     case ABAS.VIGENCIAS: return o.id;
+    case ABAS.FONTES: return o.id;
     default: return o.vigencia + '/' + o.item;
   }
 }

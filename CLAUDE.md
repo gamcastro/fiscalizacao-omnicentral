@@ -49,7 +49,7 @@ Regras:
    - Itens 1 e 3 são fixos: quantidade 1 por mês.
    - Item 2 é o número de logins únicos no período (Relatório de logins do SZ.chat).
    - Item 4 é o total de atendimentos do Relatório de mensagens passivas.
-   - Item 5 é o total do Relatório de envio em lote, **sem as campanhas de teste**. A exclusão fica registrada na observação.
+   - Item 5 é a **soma de todas as fontes de mensagens ativas do mês** (hoje "Relatório de envio em lote" e "Relatório Mensagem ativa"), sem as campanhas de teste. As fontes são sazonais e podem mudar de nome: ficam no catálogo `FontesRelatorio` e o detalhe por competência em `MedicaoFontes` (SPEC 3.11, 3.12 e regra 8 da seção 4).
    - Os itens 6 a 9 só são lançados quando houver consumo.
 4. **Canal Testes** do SZ.chat fica fora da medição. O Relatório de convocação não faz parte do contrato.
 5. **ANS:** no máximo 45 minutos de indisponibilidade somada no mês (99,741%). Minutos estimados = (100% − uptime%) × minutos do mês.
