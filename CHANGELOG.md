@@ -3,6 +3,16 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.9.0] – 08/11/2026 – Fase 5C: Leitura dos PDFs da pasta do mês
+
+### Incluído
+- Botão "Ler PDFs da pasta" no lançamento: localiza `relatorio_itens_omni_…` e `relatorio_ans_…` na pasta informada, extrai o texto (Google Docs temporário, apagado em seguida) e sugere item 2 (logins únicos), item 4 (mensagens passivas), as fontes do item 5 (ligadas ao catálogo pelo nome ou título interno; fonte desconhecida entra como "Outro") e o uptime do ANS. Mostra o trecho de origem de cada número. Nada é gravado sem conferência.
+- Conferências: período do relatório igual ao mês da competência; total de logins contra o número de e-mails listados; campanhas com "teste" no nome destacadas (sem exclusão automática).
+- Função de diagnóstico `diagnosticarPdfsAmostras()` (texto extraído salvo num Docs).
+
+### Alterado
+- Novas permissões: leitura do Drive, arquivos criados pelo app e Google Docs; serviço avançado Drive v3 (é preciso autorizar de novo em cada ambiente).
+
 ## [0.8.1] – 08/11/2026 – Correção do histórico de setembro
 
 ### Corrigido
