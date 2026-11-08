@@ -520,7 +520,8 @@
         (a.periodoTexto ? '<br><span class="dica">' + esc(a.periodoTexto) + '</span>' : '');
       return '<tr data-mont="' + a.id + '"' + (a.incluir ? '' : ' class="inativo"') + '>' +
         '<td>' + (mover ? (i + 1) + '.' : '') + '</td>' +
-        '<td>' + esc(a.nome) + (a.aviso ? '<br><span class="texto-alerta">' + esc(a.aviso) + '</span>' : '') + '</td>' +
+        '<td>' + esc(a.nome) + (a.aviso ? '<br><span class="texto-alerta">' + esc(a.aviso) + '</span>' : '') +
+          (a.texto ? '<details class="mont-texto"><summary>ver texto lido</summary><pre>' + esc(a.texto) + '</pre></details>' : '') + '</td>' +
         '<td>' + relatorio + '</td>' +
         '<td>' + periodo + '</td>' +
         '<td><label class="mont-usar"><input type="checkbox" class="mont-incluir"' + (a.incluir ? ' checked' : '') +

@@ -212,10 +212,26 @@ function interpretarTextoItens_(texto, comp, catalogo) {
 
     if (tipo === 'logins') {
       // PDF consolidado: "Total de logins únicos no período E-mail 5"; avulso: "E-mail 5 Total de logins únicos no período".
-      const m = s.texto.match(/Total de logins\s+únicos no\s+período\s+(?:E-mail\s+)?([\d.]+)/) ||
-        s.texto.match(/E-mail\s+([\d.]+)\s+Total de logins/);
+      const m = s.texto.match(/Total de logins\s+[úu]nicos\s+no\s+per[íi]odo\s+(?:E-?mail\s+)?([\d.]+)/i) ||
+        s.texto.match(/E-?mail\s+([\d.]+)\s+Total de logins/i);
       const emails = (s.texto.match(/\d+\.\s+[^\s@]+@[^\s]+/g) || []).length;
-      if (!m) { resultado.avisos.push('Logins: total de logins únicos não encontrado.'); return; }
+      if (!m) {
+        // Alternativa: o paginador da tabela de e-mails ("1 - 5 / 5"): o último número é o total de linhas,
+        // um e-mail único por linha.
+        const pag = s.texto.match(/\b1\s*-\s*(\d+)\s*\/\s*(\d+)/);
+        const valorAlt = pag ? inteiroPdf_(pag[2]) : emails;
+        if (valorAlt) {
+          resultado.itens[2] = {
+            valor: valorAlt,
+            trecho: pag ? 'tabela de e-mails: ' + trechoPdf_(s.texto, pag.index, pag.index + pag[0].length) : emails + ' e-mails listados'
+          };
+          resultado.avisos.push('Logins: o quadro "Total de logins únicos" não foi lido; usado o total da tabela de e-mails (' +
+            valorAlt + '). Confira no PDF.');
+          return;
+        }
+        resultado.avisos.push('Logins: total de logins únicos não encontrado. Texto lido: "' + trechoPdf_(s.texto, 0, 400) + '"');
+        return;
+      }
       const valor = inteiroPdf_(m[1]);
       if (emails && emails !== valor) {
         resultado.avisos.push('Logins: o total (' + valor + ') difere do número de e-mails listados (' + emails + '). Confira a paginação do relatório.');
