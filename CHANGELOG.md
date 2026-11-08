@@ -3,6 +3,13 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.8.1] – 08/11/2026 – Correção do histórico de setembro
+
+### Corrigido
+- Item 5 de 09/2026: o atesto assinado em 10/10/2026 considerou 5.215 (as 2 mensagens da campanha "Teste Mudança Sessão" não foram excluídas). Decisão do fiscal técnico: vale o que foi atestado. A carga `carregarFontesHistorico()` passa a gravar "Relatório de envio em lote: 5.215, sem exclusão", coerente com o total já lançado na produção. SPEC 3.10 atualizado.
+- Elementos com o atributo `hidden` apareciam quando a classe definia `display` (caixa de confirmação das fontes em competência já em conferência).
+- ANS não informado aparecia como "undefined" no painel, no histórico e no detalhe.
+
 ## [0.8.0] – 05/11/2026 – Fase 6: Fontes variáveis do item 5
 
 ### Incluído

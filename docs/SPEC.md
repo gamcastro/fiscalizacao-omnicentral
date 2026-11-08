@@ -144,14 +144,14 @@ Status, em ordem:
 |---|---|---|---|---|---|---|---|---|
 | 2026-07 | 1 | ? | 1 | ? | ? | ? | ? | George informa |
 | 2026-08 | 1 | 6 | 1 | 33.317 | 69.070 | 100% (0 min) | 2866941 / 2866943 / 2866955 / 2866960 – enviado em 03/09/2026 | ENVIADA_COGECON |
-| 2026-09 | 1 | 7 | 1 | 6.360 | 5.213 | 99,97% (≈13 min) | pendentes | EM_CONFERENCIA |
+| 2026-09 | 1 | 7 | 1 | 6.360 | 5.215 | 99,97% (≈13 min) | pendentes | EM_CONFERENCIA |
 
 Observações:
-- 2026-09, item 5: o relatório traz 5.215, e 2 mensagens da campanha "Teste Mudança Sessão" foram excluídas.
+- 2026-09, item 5: o relatório traz 5.215, e o atesto assinado em 10/10/2026 considerou 5.215 (as 2 mensagens da campanha "Teste Mudança Sessão" não foram excluídas). Decisão do fiscal técnico em 08/11/2026: vale o que foi atestado.
 - 2026-10, item 5 = 35.878: "Relatório de envio em lote" 349 + "Relatório Mensagem ativa" 35.529. Item 2 = 5 (inclui o login de fagianni.miranda@tre-ma.jus.br, que conta normalmente).
 - O detalhamento do item 5 por fonte fica na aba `MedicaoFontes` (3.12). Carga inicial dessa aba:
   - 2026-08: "Relatório de envio em lote" – bruto 69.070, considerado 69.070.
-  - 2026-09: "Relatório de envio em lote" – bruto 5.215, exclusão 2 ("Teste Mudança Sessão"), considerado 5.213.
+  - 2026-09: "Relatório de envio em lote" – bruto 5.215, sem exclusão, considerado 5.215.
   - 2026-10: "Relatório de envio em lote" 349 e "Relatório Mensagem ativa" 35.529.
 - 2026-07: os dados ainda serão informados. Não inventar.
 
