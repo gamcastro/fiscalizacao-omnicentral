@@ -110,13 +110,30 @@ function trechoPdf_(texto, inicio, fim) {
  */
 function secoesRelatorio_(texto) {
   const marcas = [];
-  const re = /Relatório de [^\n]*?(?=\s+Período|\s*\n|\s{2,}|$)/g;
+  // O título vai até "Período do relatório" (pode quebrar em mais de uma linha, como
+  // "Relatório de mensagens / passivas" no PDF avulso). Sem "Período" por perto, vai até o fim da linha.
+  const re = /Relatório de (?:(?!Relatório)[\s\S]){0,100}?(?=\s*Período)|Relatório de [^\n]*?(?=\s*\n|\s{2,}|$)/g;
   let m;
-  while ((m = re.exec(texto)) !== null) marcas.push({ titulo: m[0].trim(), inicio: m.index });
+  while ((m = re.exec(texto)) !== null) marcas.push({ titulo: m[0].replace(/\s+/g, ' ').trim(), inicio: m.index });
   return marcas.map(function (marca, i) {
     const fim = i + 1 < marcas.length ? marcas[i + 1].inicio : texto.length;
     return { titulo: marca.titulo, texto: texto.slice(marca.inicio, fim) };
   });
+}
+
+/**
+ * Tipo da seção: 'logins', 'passivas', 'convocacao' ou 'ativas'. Usa o título e, se ele não
+ * bastar, o conteúdo (a passiva tem a coluna "Número de atendimentos" por equipe).
+ */
+function tipoDaSecao_(secao) {
+  const titulo = normalizarNomeFonte_(secao.titulo);
+  if (/logins/.test(titulo)) return 'logins';
+  if (/passivas/.test(titulo)) return 'passivas';
+  if (/convocacao/.test(titulo)) return 'convocacao';
+  const texto = normalizarNomeFonte_(secao.texto.slice(0, 600));
+  if (/total de logins unicos/.test(texto)) return 'logins';
+  if (/numero de atendimentos/.test(texto) || /passivas/.test(texto)) return 'passivas';
+  return 'ativas';
 }
 
 /** Confere se o período da seção é o mês inteiro da competência. */
@@ -156,8 +173,9 @@ function interpretarTextoItens_(texto, comp, catalogo) {
       return;
     }
     const tituloNorm = normalizarNomeFonte_(s.titulo);
+    const tipo = tipoDaSecao_(s);
 
-    if (/logins/.test(tituloNorm)) {
+    if (tipo === 'logins') {
       const m = s.texto.match(/Total de logins únicos no\s+período\s+E-mail\s+([\d.]+)/);
       const emails = (s.texto.match(/\d+\.\s+[^\s@]+@[^\s]+/g) || []).length;
       if (!m) { resultado.avisos.push('Logins: total de logins únicos não encontrado.'); return; }
@@ -169,7 +187,7 @@ function interpretarTextoItens_(texto, comp, catalogo) {
       return;
     }
 
-    if (/passivas/.test(tituloNorm)) {
+    if (tipo === 'passivas') {
       const m = s.texto.match(/Atendimentos\s+([\d.]+)/) || s.texto.match(/Total geral\s+([\d.]+)/);
       if (!m) { resultado.avisos.push('Mensagens passivas: total de atendimentos não encontrado.'); return; }
       resultado.itens[4] = { valor: inteiroPdf_(m[1]), trecho: trechoPdf_(s.texto, m.index, m.index + m[0].length) };

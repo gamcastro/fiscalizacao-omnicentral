@@ -127,10 +127,8 @@ function classificarTextoPdf_(texto, comp, catalogo) {
 
   const titulo = titulos[0];
   const norm = normalizarNomeFonte_(titulo);
-  let tipo = 'ativas';
-  if (/logins/.test(norm)) tipo = 'logins';
-  else if (/passivas/.test(norm)) tipo = 'passivas';
-  else if (/convocacao/.test(norm)) tipo = 'fora';
+  let tipo = tipoDaSecao_(secoes[0]);
+  if (tipo === 'convocacao') tipo = 'fora';
 
   let ordem = ORDEM_TIPO_PDF[tipo];
   if (tipo === 'ativas') {
