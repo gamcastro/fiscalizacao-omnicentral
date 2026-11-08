@@ -57,7 +57,7 @@ function textoDoPdf_(arquivo) {
  * Superadmin: lê os PDFs da pasta e grava o texto extraído num Google Docs
  * "Diagnóstico PDFs <competência>" (na pasta informada), para conferir o formato real.
  */
-function diagnosticarPdfs(linkPasta, competencia) {
+function diagnosticarPdfs_(linkPasta, competencia) {
   requirePerfil_([PERFIS.SUPERADMIN]);
   const comp = validarFormatoCompetencia_(competencia);
   const idPasta = idPastaDoLink_(linkPasta);
@@ -91,5 +91,5 @@ function diagnosticarPdfs(linkPasta, competencia) {
 
 /** Atalho para o editor: PDFs de amostra de outubro/2026 na pasta de homologação. */
 function diagnosticarPdfsAmostras() {
-  return diagnosticarPdfs('https://drive.google.com/drive/folders/1vwoOgHL0oWSRTcoCli2Hvhduz8tM_WDV', '2026-10');
+  return diagnosticarPdfs_('https://drive.google.com/drive/folders/1vwoOgHL0oWSRTcoCli2Hvhduz8tM_WDV', '2026-10');
 }
