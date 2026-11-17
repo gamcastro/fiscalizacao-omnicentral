@@ -1,0 +1,664 @@
+<!-- Módulo de Acompanhamento do Empenho (Fase 7). Único lugar do app com valores em reais. -->
+<section id="tela-empenho" class="tela" hidden>
+  <div class="cabecalho-tela">
+    <div>
+      <h1>Acompanhamento do Empenho</h1>
+      <span class="dica">Valor estimado = quantidade medida × preço de referência. O pedido de reforço ou anulação continua pelo SEI.</span>
+    </div>
+    <div class="acoes">
+      <label class="filtro">Exercício <select id="emp-exercicio"></select></label>
+      <button type="button" id="emp-atualizar" class="botao">Atualizar</button>
+    </div>
+  </div>
+
+  <div id="emp-avisos" class="avisos" hidden></div>
+  <div id="emp-cards" class="grade-empenho"></div>
+
+  <div class="cartao">
+    <h2>Mês a mês</h2>
+    <table class="tabela tabela-empenho">
+      <thead>
+        <tr>
+          <th>Competência</th><th>Situação</th>
+          <th class="numero">Item 2</th><th class="numero">Item 4</th><th class="numero">Item 5</th>
+          <th class="numero">Valor estimado</th><th class="numero">NF</th><th class="numero">Valor pago</th>
+          <th>NE</th><th class="numero">NF × estimado</th>
+        </tr>
+      </thead>
+      <tbody id="emp-meses"></tbody>
+      <tfoot id="emp-meses-total"></tfoot>
+    </table>
+    <p class="dica">Nos meses a medir aparece a projeção provável (abaixo, o mínimo e o máximo). Itens 1 e 3 entram com 1; itens 2, 4 e 5 com a menor, a mediana e a maior quantidade já medida na vigência; itens 6 a 9 só por previsão manual.</p>
+  </div>
+
+  <nav class="abas-config" id="emp-abas">
+    <button type="button" data-aba="nes" class="ativa">Notas de empenho</button>
+    <button type="button" data-aba="pagamentos">Pagamentos</button>
+    <button type="button" data-aba="previsoes">Previsões manuais</button>
+    <button type="button" data-aba="despacho">Despacho de reforço/anulação</button>
+    <button type="button" data-aba="parametros" id="emp-aba-parametros" hidden>Parâmetros</button>
+  </nav>
+
+  <!-- Notas de empenho, reforços e anulações -->
+  <div class="cartao emp-painel" data-painel="nes">
+    <div class="cabecalho-form">
+      <h2>Notas de empenho de <span class="emp-ano"></span></h2>
+      <div class="acoes">
+        <button type="button" id="emp-ne-nova" class="botao primario">Nova NE</button>
+        <button type="button" id="emp-mov-novo" class="botao">Novo reforço ou anulação</button>
+      </div>
+    </div>
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>NE / movimento</th><th>Data</th><th class="numero">Valor</th><th class="numero">Líquido</th>
+          <th class="numero">Pago</th><th class="numero">A pagar</th><th class="numero">Saldo da NE</th>
+          <th>ID SEI</th><th>Observação</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="emp-ne-lista"></tbody>
+    </table>
+
+    <form id="emp-ne-form" class="bloco-form" autocomplete="off" hidden>
+      <h3 id="emp-ne-titulo">Nova nota de empenho</h3>
+      <div class="grade-form">
+        <label>Número da NE<input type="text" id="emp-ne-id" placeholder="2026NE000333"></label>
+        <label>Data de emissão<input type="date" id="emp-ne-data"></label>
+        <label>Valor inicial (R$)<input type="text" id="emp-ne-valor" inputmode="decimal" placeholder="0,00"></label>
+        <label>ID SEI da NE (opcional)<input type="text" id="emp-ne-sei" inputmode="numeric"></label>
+        <label class="largo">Observação<input type="text" id="emp-ne-obs"></label>
+      </div>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar NE</button>
+        <button type="button" class="botao" data-fechar="emp-ne-form">Cancelar</button>
+      </div>
+    </form>
+
+    <form id="emp-mov-form" class="bloco-form" autocomplete="off" hidden>
+      <h3 id="emp-mov-titulo">Novo reforço ou anulação</h3>
+      <div class="grade-form">
+        <label>Nota de empenho<select id="emp-mov-ne"></select></label>
+        <label>Tipo<select id="emp-mov-tipo"><option value="REFORCO">Reforço</option><option value="ANULACAO">Anulação</option></select></label>
+        <label>Data<input type="date" id="emp-mov-data"></label>
+        <label>Valor (R$)<input type="text" id="emp-mov-valor" inputmode="decimal" placeholder="0,00"></label>
+        <label>ID SEI (opcional)<input type="text" id="emp-mov-sei" inputmode="numeric"></label>
+        <label class="largo">Observação<input type="text" id="emp-mov-obs"></label>
+      </div>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar movimento</button>
+        <button type="button" class="botao" data-fechar="emp-mov-form">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Pagamentos -->
+  <div class="cartao emp-painel" data-painel="pagamentos" hidden>
+    <div class="cabecalho-form">
+      <h2>Pagamentos com as NEs de <span class="emp-ano"></span></h2>
+      <button type="button" id="emp-pag-novo" class="botao primario">Novo pagamento</button>
+    </div>
+    <table class="tabela">
+      <thead>
+        <tr>
+          <th>Id</th><th>Competência</th><th>Tipo</th><th>NE</th><th>NF</th><th>Data NF</th><th class="numero">Valor NF</th>
+          <th>Situação</th><th class="numero">Valor pago</th><th>Data pgto.</th><th>ID SEI</th><th>Observação</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="emp-pag-lista"></tbody>
+    </table>
+
+    <form id="emp-pag-form" class="bloco-form" autocomplete="off" hidden>
+      <h3 id="emp-pag-titulo">Novo pagamento</h3>
+      <div class="grade-form">
+        <label>Competência<input type="month" id="emp-pag-comp"></label>
+        <label>Nota de empenho<select id="emp-pag-ne"></select></label>
+        <label>Tipo<select id="emp-pag-tipo">
+          <option value="MENSAL">Mensal</option><option value="RETROATIVO">Retroativo</option><option value="OUTRO">Outro</option>
+        </select></label>
+        <label>Número da NF<input type="text" id="emp-pag-nf"></label>
+        <label>Data da NF<input type="date" id="emp-pag-datanf"></label>
+        <label>Valor da NF (R$)<input type="text" id="emp-pag-valornf" inputmode="decimal" placeholder="0,00"></label>
+        <label>Situação<select id="emp-pag-situacao"><option value="A_PAGAR">A pagar</option><option value="PAGO">Pago</option></select></label>
+        <label class="emp-se-pago">Valor pago (R$)<input type="text" id="emp-pag-valorpago" inputmode="decimal" placeholder="0,00"></label>
+        <label class="emp-se-pago">Data do pagamento<input type="date" id="emp-pag-datapag"></label>
+        <label>ID SEI (opcional)<input type="text" id="emp-pag-sei" inputmode="numeric"></label>
+        <label class="largo">Observação<input type="text" id="emp-pag-obs"></label>
+      </div>
+      <p id="emp-pag-estimado" class="dica"></p>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar pagamento</button>
+        <button type="button" class="botao" data-fechar="emp-pag-form">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Previsões manuais -->
+  <div class="cartao emp-painel" data-painel="previsoes" hidden>
+    <div class="cabecalho-form">
+      <h2>Previsões manuais de <span class="emp-ano"></span></h2>
+      <button type="button" id="emp-prev-nova" class="botao primario">Nova previsão</button>
+    </div>
+    <p class="dica">Para mês com evento conhecido (eleição suplementar, campanha de notificação, item eventual previsto). A quantidade prevista substitui a projeção daquele item naquele mês nos três cenários.</p>
+    <table class="tabela">
+      <thead><tr><th>Competência</th><th>Item</th><th class="numero">Quantidade prevista</th><th>Observação</th><th>Situação</th><th></th></tr></thead>
+      <tbody id="emp-prev-lista"></tbody>
+    </table>
+
+    <form id="emp-prev-form" class="bloco-form" autocomplete="off" hidden>
+      <h3 id="emp-prev-titulo">Nova previsão</h3>
+      <div class="grade-form">
+        <label>Competência<select id="emp-prev-comp"></select></label>
+        <label>Item<select id="emp-prev-item"></select></label>
+        <label>Quantidade prevista<input type="text" id="emp-prev-qtd" inputmode="numeric"></label>
+        <label class="largo">Observação (obrigatória)<input type="text" id="emp-prev-obs" placeholder="ex.: eleição suplementar de Nova Olinda"></label>
+      </div>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar previsão</button>
+        <button type="button" class="botao" data-fechar="emp-prev-form">Cancelar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Despacho 6.3 -->
+  <div class="cartao emp-painel" data-painel="despacho" hidden>
+    <h2>Despacho de reforço ou anulação de empenho</h2>
+    <div class="grade-form">
+      <label>Tipo<select id="emp-desp-tipo"><option value="REFORCO">Reforço</option><option value="ANULACAO">Anulação</option></select></label>
+      <label>Nota de empenho<select id="emp-desp-ne"></select></label>
+      <label>Valor (R$)<input type="text" id="emp-desp-valor" inputmode="decimal"></label>
+      <div class="acoes acoes-form"><button type="button" id="emp-desp-gerar" class="botao primario">Gerar texto</button></div>
+    </div>
+    <p id="emp-desp-sugestao" class="dica"></p>
+    <div id="emp-desp-avisos" class="avisos" hidden></div>
+    <div id="emp-desp-bloco" hidden>
+      <div class="cabecalho-form"><h3>Texto para o SEI</h3>
+        <button type="button" id="emp-desp-copiar" class="botao pequeno">Copiar</button></div>
+      <div id="emp-desp-texto" class="documento-sei"></div>
+    </div>
+  </div>
+
+  <!-- Parâmetros (só superadmin) -->
+  <div class="cartao emp-painel" data-painel="parametros" hidden>
+    <p class="dica">Só o superadmin altera estes parâmetros. Cada campo é salvo separadamente e a alteração fica registrada no Log.</p>
+    <div id="emp-parametros"></div>
+  </div>
+</section>
+
+<script>
+  (function () {
+    window.TELAS = window.TELAS || {};
+    const el = function (id) { return document.getElementById(id); };
+    let dados = null;
+    let despacho = null;
+    const edicao = { ne: '', mov: '', pag: '', prev: '' };
+
+    function reais(n) {
+      return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    function valorCampo(n) {
+      return n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function qtd(n) { return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 1 }); }
+    function dataBr(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+    function rotuloComp(c) { return c ? c.slice(5) + '/' + c.slice(0, 4) : ''; }
+    function hoje() {
+      const p = {};
+      new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' })
+        .formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
+      return p.year + '-' + p.month + '-' + p.day;
+    }
+    const ROTULOS = {
+      REFORCO: 'Reforço', ANULACAO: 'Anulação', MENSAL: 'Mensal', RETROATIVO: 'Retroativo', OUTRO: 'Outro',
+      A_PAGAR: 'A pagar', PAGO: 'Pago'
+    };
+
+    /* ---------- Carga e desenho ---------- */
+
+    function carregar(exercicio) {
+      el('emp-cards').innerHTML = '<p class="vazio">Carregando…</p>';
+      ocupado(true);
+      return chamar('getEmpenho', exercicio || '')
+        .then(renderizar)
+        .catch(function (erro) {
+          el('emp-cards').innerHTML = '<p class="vazio">Não foi possível carregar o acompanhamento do empenho.</p>';
+          mostrarMensagem(erro.message, 'erro');
+        })
+        .then(function () { ocupado(false); });
+    }
+
+    function renderizar(d) {
+      dados = d;
+      el('emp-exercicio').innerHTML = d.exercicios.map(function (a) {
+        return '<option value="' + esc(a) + '"' + (a === d.exercicio ? ' selected' : '') + '>' + esc(a) + '</option>';
+      }).join('');
+      document.querySelectorAll('#tela-empenho .emp-ano').forEach(function (s) { s.textContent = d.exercicio; });
+      el('emp-aba-parametros').hidden = !d.podeConfigurar;
+
+      const avisos = d.calc.avisos;
+      el('emp-avisos').hidden = !avisos.length;
+      el('emp-avisos').innerHTML = '<strong>Atenção</strong><ul>' + avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+
+      desenharCards();
+      desenharMeses();
+      desenharNes();
+      desenharPagamentos();
+      desenharPrevisoes();
+      prepararDespacho();
+      desenharParametros();
+      preencherSelects();
+    }
+
+    function card(titulo, valor, detalhe, classe) {
+      return '<div class="card-emp ' + (classe || '') + '"><div class="card-emp-titulo">' + esc(titulo) + '</div>' +
+        '<div class="card-emp-valor">' + valor + '</div>' + (detalhe ? '<div class="dica">' + detalhe + '</div>' : '') + '</div>';
+    }
+
+    function desenharCards() {
+      const c = dados.calc, t = c.totais, n = c.necessidade, ind = c.indicacao;
+      const margem = (c.margem * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+      let detalheInd = ind.tipo === 'REFORCO'
+        ? 'Saldo menor que a necessidade provável + ' + margem + '% (' + esc(reais(c.alvos.reforco)) + ').'
+        : ind.tipo === 'ANULACAO'
+          ? 'Sobra saldo mesmo no cenário máximo + ' + margem + '% (' + esc(reais(c.alvos.anulacao)) + ').'
+          : 'O saldo cobre a necessidade provável com a margem de ' + margem + '% e não sobra no cenário máximo.';
+      let classePrazo = '';
+      if (dados.prazo) {
+        detalheInd += '<br><strong>' + esc(dados.prazo.texto) + '</strong>';
+        if (dados.prazo.situacao === 'JANELA') classePrazo = ' com-prazo';
+      } else {
+        detalheInd += '<br>A data-limite vale para o exercício ' + esc(dados.exercicioPadrao) + '.';
+      }
+      el('emp-cards').innerHTML = [
+        card('Empenhado líquido', esc(reais(t.empenhado)),
+          'Inicial ' + esc(reais(t.inicial)) + ' · reforços ' + esc(reais(t.reforcos)) + ' · anulações ' + esc(reais(t.anulacoes))),
+        card('Pago', esc(reais(t.pago)), 'Soma dos pagamentos com situação "Pago".'),
+        card('A pagar + comprometido', esc(reais(t.aPagar + t.comprometido)),
+          'NF a pagar ' + esc(reais(t.aPagar)) + ' · medido sem pagamento ' + esc(reais(t.comprometido))),
+        card('Saldo disponível', esc(reais(t.saldo)), 'Empenhado − pago − a pagar − comprometido.', t.saldo < 0 ? 'critico' : ''),
+        card('Necessidade até dezembro', esc(reais(n.provavel)),
+          'Provável · mínimo ' + esc(reais(n.minimo)) + ' · máximo ' + esc(reais(n.maximo)) + '<br>' +
+          (c.mesesFuturos.length ? c.mesesFuturos.length + ' competência(s): ' + esc(c.mesesFuturos.map(rotuloComp).join(', ')) : 'Nenhuma competência a medir.')),
+        card('Indicação', esc(ind.rotulo) + (ind.tipo !== 'ADEQUADO' ? '<span class="card-emp-sugerido">' + esc(reais(ind.valor)) + '</span>' : ''),
+          detalheInd, 'ind-' + ind.tipo + classePrazo)
+      ].join('');
+    }
+
+    function desenharMeses() {
+      const meses = dados.calc.meses;
+      if (!meses.length) {
+        el('emp-meses').innerHTML = '<tr><td colspan="10" class="vazio">Nenhuma competência de ' + esc(dados.exercicio) + ' está dentro de uma vigência cadastrada.</td></tr>';
+        el('emp-meses-total').innerHTML = '';
+        return;
+      }
+      const soma = { estimado: 0, previsto: 0, nf: 0, pago: 0 };
+      el('emp-meses').innerHTML = meses.map(function (m) {
+        const futura = m.situacao === 'FUTURA';
+        if (futura) soma.previsto += m.previsto.provavel; else soma.estimado += m.estimado || 0;
+        soma.nf += m.valorNF || 0;
+        soma.pago += m.valorPago || 0;
+        const situacao = '<span class="etiqueta emp-sit-' + esc(m.situacao) + '">' + esc(m.situacaoRotulo) + '</span>' +
+          (m.semDados ? ' <span class="etiqueta nok">sem dados</span>' : '') +
+          (m.status === 'RASCUNHO' ? ' <span class="dica">(rascunho)</span>' : '');
+        const q = m.quantidades || {};
+        const estimado = futura
+          ? '<span class="emp-previsto">' + esc(reais(m.previsto.provavel)) + '</span><br><span class="dica">' +
+            esc(reais(m.previsto.minimo)) + ' – ' + esc(reais(m.previsto.maximo)) + '</span>' +
+            (m.previsoes.length ? '<br><span class="dica">previsão: ' + esc(m.previsoes.map(function (p) { return 'item ' + p.item + ' = ' + qtd(p.quantidade); }).join(', ')) + '</span>' : '')
+          : esc(reais(m.estimado));
+        const diferenca = m.diferencaNF === null ? '—'
+          : '<span class="' + (m.alertaNF ? 'texto-alerta' : '') + '">' + esc(reais(m.diferencaNF)) + (m.alertaNF ? ' ⚠' : '') + '</span>';
+        return '<tr' + (futura ? ' class="emp-futura"' : '') + '>' +
+          '<td><strong>' + esc(rotuloComp(m.competencia)) + '</strong></td>' +
+          '<td>' + situacao + '</td>' +
+          '<td class="numero">' + qtd(q[2]) + '</td><td class="numero">' + qtd(q[4]) + '</td><td class="numero">' + qtd(q[5]) + '</td>' +
+          '<td class="numero">' + estimado + '</td>' +
+          '<td class="numero">' + esc(reais(m.valorNF)) + '</td>' +
+          '<td class="numero">' + esc(reais(m.valorPago)) + '</td>' +
+          '<td>' + esc(m.nes.join(', ')) + '</td>' +
+          '<td class="numero">' + diferenca + '</td></tr>';
+      }).join('');
+      el('emp-meses-total').innerHTML = '<tr><th colspan="5">Total</th>' +
+        '<th class="numero">' + esc(reais(soma.estimado)) + (soma.previsto ? '<br><span class="dica">+ ' + esc(reais(soma.previsto)) + ' previsto</span>' : '') + '</th>' +
+        '<th class="numero">' + esc(reais(soma.nf)) + '</th><th class="numero">' + esc(reais(soma.pago)) + '</th><th colspan="2"></th></tr>';
+    }
+
+    function botaoAtivo(tipo, chave, ativo) {
+      return ativo
+        ? '<button type="button" class="botao pequeno" data-acao="desativar" data-tipo="' + tipo + '" data-chave="' + esc(chave) + '">Desativar</button>'
+        : '<button type="button" class="botao pequeno" data-acao="reativar" data-tipo="' + tipo + '" data-chave="' + esc(chave) + '">Reativar</button>';
+    }
+    function botaoEditar(tipo, chave, ativo) {
+      return ativo ? '<button type="button" class="botao pequeno" data-acao="editar" data-tipo="' + tipo + '" data-chave="' + esc(chave) + '">Editar</button> ' : '';
+    }
+
+    function desenharNes() {
+      el('emp-ne-lista').innerHTML = dados.empenhos.length ? dados.empenhos.map(function (e) {
+        const r = e.resumo || {};
+        let html = '<tr class="' + (e.ativo ? '' : 'inativo') + '">' +
+          '<td><strong>' + esc(e.id) + '</strong>' + (e.ativo ? '' : ' <span class="etiqueta off">desativada</span>') + '</td>' +
+          '<td>' + esc(dataBr(e.dataEmissao)) + '</td>' +
+          '<td class="numero">' + esc(reais(e.valorInicial)) + '</td>' +
+          '<td class="numero">' + (e.ativo ? esc(reais(r.liquido)) : '—') + '</td>' +
+          '<td class="numero">' + (e.ativo ? esc(reais(r.pago)) : '—') + '</td>' +
+          '<td class="numero">' + (e.ativo ? esc(reais(r.aPagar)) : '—') + '</td>' +
+          '<td class="numero">' + (e.ativo ? '<span class="' + (r.saldo < 0 ? 'texto-alerta' : '') + '">' + esc(reais(r.saldo)) + '</span>' : '—') + '</td>' +
+          '<td>' + esc(e.idSei) + '</td><td>' + esc(e.obs) + '</td>' +
+          '<td class="acoes-linha">' + botaoEditar('NE', e.id, e.ativo) + botaoAtivo('NE', e.id, e.ativo) + '</td></tr>';
+        html += e.movimentos.map(function (m) {
+          return '<tr class="sub-fonte ' + (m.ativo ? '' : 'inativo') + '">' +
+            '<td>↳ ' + esc(ROTULOS[m.tipo] || m.tipo) + ' <span class="dica">' + esc(m.id) + '</span>' +
+              (m.ativo ? '' : ' <span class="etiqueta off">desativado</span>') + '</td>' +
+            '<td>' + esc(dataBr(m.data)) + '</td>' +
+            '<td class="numero">' + (m.tipo === 'ANULACAO' ? '− ' : '+ ') + esc(reais(m.valor)) + '</td>' +
+            '<td></td><td></td><td></td><td></td>' +
+            '<td>' + esc(m.idSei) + '</td><td>' + esc(m.obs) + '</td>' +
+            '<td class="acoes-linha">' + botaoEditar('MOV', m.id, m.ativo) + botaoAtivo('MOV', m.id, m.ativo) + '</td></tr>';
+        }).join('');
+        return html;
+      }).join('') : '<tr><td colspan="10" class="vazio">Nenhuma nota de empenho cadastrada para ' + esc(dados.exercicio) + '.</td></tr>';
+    }
+
+    function desenharPagamentos() {
+      el('emp-pag-lista').innerHTML = dados.pagamentos.length ? dados.pagamentos.map(function (p) {
+        return '<tr class="' + (p.ativo ? '' : 'inativo') + '">' +
+          '<td>' + esc(p.id) + (p.ativo ? '' : ' <span class="etiqueta off">desativado</span>') + '</td>' +
+          '<td><strong>' + esc(rotuloComp(p.competencia)) + '</strong></td>' +
+          '<td>' + esc(ROTULOS[p.tipo] || p.tipo) + '</td><td>' + esc(p.empenhoId) + '</td>' +
+          '<td>' + esc(p.numeroNF) + '</td><td>' + esc(dataBr(p.dataNF)) + '</td>' +
+          '<td class="numero">' + esc(reais(p.valorNF)) + '</td>' +
+          '<td><span class="etiqueta ' + (p.situacao === 'PAGO' ? 'ok' : 'off') + '">' + esc(ROTULOS[p.situacao] || p.situacao) + '</span></td>' +
+          '<td class="numero">' + (p.situacao === 'PAGO' ? esc(reais(p.valorPago)) : '—') + '</td>' +
+          '<td>' + esc(dataBr(p.dataPagamento)) + '</td><td>' + esc(p.idSei) + '</td><td>' + esc(p.obs) + '</td>' +
+          '<td class="acoes-linha">' + botaoEditar('PAG', p.id, p.ativo) + botaoAtivo('PAG', p.id, p.ativo) + '</td></tr>';
+      }).join('') : '<tr><td colspan="13" class="vazio">Nenhum pagamento registrado com as NEs de ' + esc(dados.exercicio) + '.</td></tr>';
+    }
+
+    function desenharPrevisoes() {
+      const itens = {};
+      dados.itens.forEach(function (i) { itens[i.item] = i.descricao; });
+      el('emp-prev-lista').innerHTML = dados.previsoes.length ? dados.previsoes.map(function (p) {
+        return '<tr class="' + (p.ativo ? '' : 'inativo') + '">' +
+          '<td><strong>' + esc(rotuloComp(p.competencia)) + '</strong></td>' +
+          '<td>' + p.item + ' – ' + esc(itens[p.item] || '') + '</td>' +
+          '<td class="numero">' + qtd(p.quantidadePrevista) + '</td><td>' + esc(p.obs) + '</td>' +
+          '<td>' + (p.ativo ? '<span class="etiqueta ok">ativa</span>' : '<span class="etiqueta off">desativada</span>') + '</td>' +
+          '<td class="acoes-linha">' + botaoEditar('PREV', p.ref, p.ativo) + botaoAtivo('PREV', p.ref, p.ativo) + '</td></tr>';
+      }).join('') : '<tr><td colspan="6" class="vazio">Nenhuma previsão manual para ' + esc(dados.exercicio) + '.</td></tr>';
+    }
+
+    function opcoesNes(selecionada) {
+      const ativas = dados.empenhos.filter(function (e) { return e.ativo; });
+      if (!ativas.length) return '<option value="">(cadastre uma NE ativa)</option>';
+      return ativas.map(function (e) {
+        return '<option value="' + esc(e.id) + '"' + (e.id === selecionada ? ' selected' : '') + '>' + esc(e.id) + '</option>';
+      }).join('');
+    }
+
+    function preencherSelects() {
+      el('emp-prev-comp').innerHTML = dados.mesesExercicio.map(function (c) {
+        return '<option value="' + esc(c) + '">' + esc(rotuloComp(c)) + '</option>';
+      }).join('');
+      el('emp-prev-item').innerHTML = dados.itens.map(function (i) {
+        return '<option value="' + i.item + '">' + i.item + ' – ' + esc(i.descricao) + '</option>';
+      }).join('');
+    }
+
+    function prepararDespacho() {
+      const ind = dados.calc.indicacao;
+      el('emp-desp-tipo').value = ind.tipo === 'ANULACAO' ? 'ANULACAO' : 'REFORCO';
+      el('emp-desp-ne').innerHTML = opcoesNes('');
+      el('emp-desp-valor').value = ind.tipo !== 'ADEQUADO' ? valorCampo(ind.valor) : '';
+      el('emp-desp-sugestao').textContent = 'Indicação atual: ' + ind.texto + '. O valor pode ser ajustado antes de gerar o texto.' +
+        (dados.unidadeDestino ? '' : ' A unidade destinatária ainda não foi informada nos parâmetros.');
+      el('emp-desp-bloco').hidden = true;
+      el('emp-desp-avisos').hidden = true;
+      despacho = null;
+    }
+
+    function desenharParametros() {
+      if (!dados.podeConfigurar) { el('emp-parametros').innerHTML = ''; return; }
+      el('emp-parametros').innerHTML = dados.parametros.map(function (p) {
+        const tipo = p.tipo === 'data' ? 'date' : 'text';
+        return '<div class="cfg-linha"><div><strong>' + esc(p.rotulo) + '</strong><br><span class="dica">' + esc(p.chave) +
+          (p.dica ? ' · ' + esc(p.dica) : '') + '</span></div>' +
+          '<div class="cfg-controle"><input type="' + tipo + '" data-param="' + esc(p.chave) + '" value="' + esc(p.valor) + '"></div>' +
+          '<div><button type="button" class="botao" data-salvar-param="' + esc(p.chave) + '">Salvar</button></div></div>';
+      }).join('');
+    }
+
+    /* ---------- Formulários ---------- */
+
+    function fecharFormularios() {
+      ['emp-ne-form', 'emp-mov-form', 'emp-pag-form', 'emp-prev-form'].forEach(function (id) { el(id).hidden = true; });
+      edicao.ne = edicao.mov = edicao.pag = edicao.prev = '';
+    }
+
+    function abrirFormulario(id) {
+      fecharFormularios();
+      el(id).hidden = false;
+      el(id).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function abrirNe(ne) {
+      abrirFormulario('emp-ne-form');
+      edicao.ne = ne ? ne.id : '';
+      el('emp-ne-titulo').textContent = ne ? 'Editar NE ' + ne.id : 'Nova nota de empenho';
+      el('emp-ne-id').value = ne ? ne.id : dados.exercicio + 'NE';
+      el('emp-ne-id').readOnly = !!ne;
+      el('emp-ne-data').value = ne ? ne.dataEmissao : '';
+      el('emp-ne-valor').value = ne ? valorCampo(ne.valorInicial) : '';
+      el('emp-ne-sei').value = ne ? ne.idSei : '';
+      el('emp-ne-obs').value = ne ? ne.obs : '';
+    }
+
+    function abrirMovimento(m) {
+      abrirFormulario('emp-mov-form');
+      edicao.mov = m ? m.id : '';
+      el('emp-mov-titulo').textContent = m ? 'Editar movimento ' + m.id : 'Novo reforço ou anulação';
+      el('emp-mov-ne').innerHTML = opcoesNes(m ? m.empenhoId : '');
+      el('emp-mov-tipo').value = m ? m.tipo : 'REFORCO';
+      el('emp-mov-data').value = m ? m.data : hoje();
+      el('emp-mov-valor').value = m ? valorCampo(m.valor) : '';
+      el('emp-mov-sei').value = m ? m.idSei : '';
+      el('emp-mov-obs').value = m ? m.obs : '';
+    }
+
+    function abrirPagamento(p) {
+      abrirFormulario('emp-pag-form');
+      edicao.pag = p ? p.id : '';
+      el('emp-pag-titulo').textContent = p ? 'Editar pagamento ' + p.id : 'Novo pagamento';
+      const medida = dados.calc.meses.filter(function (m) { return m.lancada; }).map(function (m) { return m.competencia; });
+      el('emp-pag-comp').value = p ? p.competencia : (medida.length ? medida[medida.length - 1] : '');
+      el('emp-pag-ne').innerHTML = opcoesNes(p ? p.empenhoId : '');
+      el('emp-pag-tipo').value = p ? p.tipo : 'MENSAL';
+      el('emp-pag-nf').value = p ? p.numeroNF : '';
+      el('emp-pag-datanf').value = p ? p.dataNF : '';
+      el('emp-pag-valornf').value = p ? valorCampo(p.valorNF) : '';
+      el('emp-pag-situacao').value = p ? p.situacao : 'A_PAGAR';
+      el('emp-pag-valorpago').value = p && p.situacao === 'PAGO' ? valorCampo(p.valorPago) : '';
+      el('emp-pag-datapag').value = p ? p.dataPagamento : '';
+      el('emp-pag-sei').value = p ? p.idSei : '';
+      el('emp-pag-obs').value = p ? p.obs : '';
+      atualizarFormPagamento();
+    }
+
+    function atualizarFormPagamento() {
+      const pago = el('emp-pag-situacao').value === 'PAGO';
+      document.querySelectorAll('#emp-pag-form .emp-se-pago').forEach(function (l) { l.hidden = !pago; });
+      if (pago && !el('emp-pag-valorpago').value) el('emp-pag-valorpago').value = el('emp-pag-valornf').value;
+      const comp = el('emp-pag-comp').value;
+      const mes = dados.calc.meses.find(function (m) { return m.competencia === comp; });
+      el('emp-pag-estimado').textContent = mes && mes.lancada
+        ? 'Valor estimado da competência ' + rotuloComp(comp) + ': ' + reais(mes.estimado) + ' (a NF mensal é conferida com este valor).'
+        : comp ? 'A competência ' + rotuloComp(comp) + ' ainda não tem medição lançada.' : '';
+    }
+
+    function abrirPrevisao(p) {
+      abrirFormulario('emp-prev-form');
+      edicao.prev = p ? String(p.ref) : '';
+      el('emp-prev-titulo').textContent = p ? 'Editar previsão' : 'Nova previsão';
+      if (p) {
+        el('emp-prev-comp').value = p.competencia;
+        el('emp-prev-item').value = String(p.item);
+      } else {
+        const futura = dados.calc.mesesFuturos.filter(function (c) { return c >= hoje().slice(0, 7); })[0];
+        if (futura) el('emp-prev-comp').value = futura;
+      }
+      el('emp-prev-qtd').value = p ? String(p.quantidadePrevista) : '';
+      el('emp-prev-obs').value = p ? p.obs : '';
+    }
+
+    /* ---------- Gravação ---------- */
+
+    function ocupado(sim) {
+      document.querySelectorAll('#tela-empenho button, #tela-empenho select').forEach(function (b) { b.disabled = sim; });
+    }
+
+    function gravar(promessa) {
+      ocupado(true);
+      return promessa
+        .then(function (r) {
+          fecharFormularios();
+          renderizar(r.empenho);
+          if (r.avisos && r.avisos.length) mostrarMensagem(r.mensagem + ' Atenção: ' + r.avisos.join(' '), 'info');
+          else mostrarMensagem(r.mensagem, 'sucesso');
+          window.scrollTo(0, 0);
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); window.scrollTo(0, 0); })
+        .then(function () { ocupado(false); });
+    }
+
+    el('emp-ne-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      gravar(chamar('salvarEmpenho', {
+        idOriginal: edicao.ne, id: el('emp-ne-id').value, dataEmissao: el('emp-ne-data').value,
+        valorInicial: el('emp-ne-valor').value, idSei: el('emp-ne-sei').value, obs: el('emp-ne-obs').value
+      }));
+    });
+    el('emp-mov-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      gravar(chamar('salvarMovimento', {
+        id: edicao.mov, empenhoId: el('emp-mov-ne').value, tipo: el('emp-mov-tipo').value, data: el('emp-mov-data').value,
+        valor: el('emp-mov-valor').value, idSei: el('emp-mov-sei').value, obs: el('emp-mov-obs').value
+      }));
+    });
+    el('emp-pag-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      gravar(chamar('salvarPagamento', {
+        id: edicao.pag, competencia: el('emp-pag-comp').value, empenhoId: el('emp-pag-ne').value, tipo: el('emp-pag-tipo').value,
+        numeroNF: el('emp-pag-nf').value, dataNF: el('emp-pag-datanf').value, valorNF: el('emp-pag-valornf').value,
+        situacao: el('emp-pag-situacao').value, valorPago: el('emp-pag-valorpago').value, dataPagamento: el('emp-pag-datapag').value,
+        idSei: el('emp-pag-sei').value, obs: el('emp-pag-obs').value
+      }));
+    });
+    el('emp-prev-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      gravar(chamar('salvarPrevisao', {
+        ref: edicao.prev, competencia: el('emp-prev-comp').value, item: el('emp-prev-item').value,
+        quantidadePrevista: el('emp-prev-qtd').value, obs: el('emp-prev-obs').value
+      }));
+    });
+    ['emp-pag-situacao', 'emp-pag-comp'].forEach(function (id) { el(id).addEventListener('change', atualizarFormPagamento); });
+
+    el('emp-ne-nova').addEventListener('click', function () { abrirNe(null); });
+    el('emp-mov-novo').addEventListener('click', function () { abrirMovimento(null); });
+    el('emp-pag-novo').addEventListener('click', function () { abrirPagamento(null); });
+    el('emp-prev-nova').addEventListener('click', function () { abrirPrevisao(null); });
+    el('emp-atualizar').addEventListener('click', function () { limparMensagem(); carregar(dados ? dados.exercicio : ''); });
+    el('emp-exercicio').addEventListener('change', function () { limparMensagem(); fecharFormularios(); carregar(this.value); });
+
+    el('emp-abas').addEventListener('click', function (ev) {
+      const b = ev.target.closest('button[data-aba]');
+      if (!b) return;
+      document.querySelectorAll('#emp-abas button').forEach(function (x) { x.classList.toggle('ativa', x === b); });
+      document.querySelectorAll('#tela-empenho .emp-painel').forEach(function (p) { p.hidden = p.dataset.painel !== b.dataset.aba; });
+    });
+
+    function buscar(tipo, chave) {
+      if (tipo === 'NE') return dados.empenhos.find(function (e) { return e.id === chave; });
+      if (tipo === 'MOV') {
+        for (let i = 0; i < dados.empenhos.length; i++) {
+          const m = dados.empenhos[i].movimentos.find(function (x) { return x.id === chave; });
+          if (m) return m;
+        }
+        return null;
+      }
+      if (tipo === 'PAG') return dados.pagamentos.find(function (p) { return p.id === chave; });
+      return dados.previsoes.find(function (p) { return String(p.ref) === chave; });
+    }
+
+    el('tela-empenho').addEventListener('click', function (ev) {
+      const fechar = ev.target.closest('[data-fechar]');
+      if (fechar) { fecharFormularios(); return; }
+
+      const param = ev.target.closest('[data-salvar-param]');
+      if (param) {
+        const chave = param.dataset.salvarParam;
+        const campo = document.querySelector('#emp-parametros input[data-param="' + chave + '"]');
+        gravar(chamar('salvarParametroEmpenho', chave, campo.value, dados.exercicio));
+        return;
+      }
+
+      const b = ev.target.closest('button[data-acao]');
+      if (!b) return;
+      const tipo = b.dataset.tipo, chave = b.dataset.chave;
+      const registro = buscar(tipo, chave);
+      if (b.dataset.acao === 'editar') {
+        if (tipo === 'NE') abrirNe(registro);
+        else if (tipo === 'MOV') abrirMovimento(registro);
+        else if (tipo === 'PAG') abrirPagamento(registro);
+        else abrirPrevisao(registro);
+        return;
+      }
+      const ativar = b.dataset.acao === 'reativar';
+      const nomes = { NE: 'a NE ' + chave, MOV: 'o movimento ' + chave, PAG: 'o pagamento ' + chave, PREV: 'esta previsão' };
+      if (!confirm((ativar ? 'Reativar ' : 'Desativar ') + nomes[tipo] + '? A alteração fica registrada no Log.')) return;
+      gravar(chamar('alterarAtivoEmpenho', tipo, chave, ativar, dados.exercicio));
+    });
+
+    /* ---------- Despacho ---------- */
+
+    el('emp-desp-gerar').addEventListener('click', function () {
+      ocupado(true);
+      chamar('gerarDespachoEmpenho', dados.exercicio, {
+        tipo: el('emp-desp-tipo').value, empenhoId: el('emp-desp-ne').value, valor: el('emp-desp-valor').value
+      })
+        .then(function (r) {
+          despacho = r;
+          el('emp-desp-texto').innerHTML = r.html;
+          el('emp-desp-bloco').hidden = false;
+          el('emp-desp-avisos').hidden = !r.avisos.length;
+          el('emp-desp-avisos').innerHTML = '<strong>Atenção</strong><ul>' + r.avisos.map(function (a) { return '<li>' + esc(a) + '</li>'; }).join('') + '</ul>';
+        })
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); })
+        .then(function () { ocupado(false); });
+    });
+
+    el('emp-desp-copiar').addEventListener('click', function () {
+      if (!despacho) return;
+      const botao = this;
+      const aoCopiar = function (ev) {
+        ev.clipboardData.setData('text/html', despacho.html);
+        ev.clipboardData.setData('text/plain', despacho.texto);
+        ev.preventDefault();
+      };
+      document.addEventListener('copy', aoCopiar);
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      document.removeEventListener('copy', aoCopiar);
+      if (ok) {
+        botao.textContent = 'Copiado ✓';
+        setTimeout(function () { botao.textContent = 'Copiar'; }, 2000);
+      } else {
+        mostrarMensagem('Não foi possível copiar automaticamente. Selecione o texto e use Ctrl+C.', 'erro');
+      }
+    });
+
+    window.TELAS.empenho = {
+      abrir: function (opcoes) {
+        fecharFormularios();
+        carregar(opcoes && opcoes.exercicio ? opcoes.exercicio : (dados ? dados.exercicio : ''));
+      }
+    };
+  })();
+</script>

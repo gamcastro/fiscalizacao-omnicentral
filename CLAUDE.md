@@ -2,6 +2,8 @@
 
 Web App em Google Apps Script para a fiscalização técnica do Contrato TRE-MA nº 20/2025 (Omnicentral Tecnologia Ltda – plataforma omnichannel/WhatsApp). Registra, por competência mensal, as quantidades medidas, o ANS e os documentos do SEI, e mostra o saldo de quantidades da vigência.
 
+Desde a Fase 7, tem também o módulo **Acompanhamento do Empenho**, separado da fiscalização técnica: acompanha o saldo das notas de empenho do exercício e projeta se vai sobrar ou faltar orçamento até dezembro (SPEC 3.13 a 3.16, regra 9 e Fase 7).
+
 A especificação completa está em `docs/SPEC.md`. Leia antes de qualquer mudança.
 
 ## Stack e comandos
@@ -43,7 +45,11 @@ Regras:
 
 ## Regras de negócio que nunca podem ser quebradas
 
-1. **Preços são só referência.** A aba de preços existe para consulta, mas nenhum cálculo, validação, painel ou texto do SEI usa valor em reais. O controle é por quantidade, ANS e IDs do SEI.
+1. **Valores em reais só no módulo de Acompanhamento do Empenho** (decisão do George em 17/11/2026).
+   - A fiscalização técnica continua sem nenhum valor em reais: lançamento, detalhe da competência, painel de saldos de quantidade, histórico, atesto e despacho de pagamento trabalham só com quantidade, ANS e IDs do SEI.
+   - O módulo de empenho (`Empenho.js` e telas `empenho*.html`) é o único lugar que calcula ou mostra valores em reais. Ele lê as quantidades e os preços, mas **nunca grava** nas abas da fiscalização técnica.
+   - O módulo é visto e usado por `SUPERADMIN`, `FISCAL_TECNICO` e `GESTOR`. Os demais perfis não veem o menu, e o servidor nega o acesso.
+   - O único resumo do empenho fora do módulo é um card no painel, visível só para esses três perfis.
 2. **Histórico começa em 07/2026** (vigência do 2º Termo Aditivo: 01/07/2026 a 30/06/2027).
 3. **Itens medidos por mês:**
    - Itens 1 e 3 são fixos: quantidade 1 por mês.
@@ -65,6 +71,7 @@ Regras:
   - `Auth.js`: perfis e permissões.
   - `Repo.js`: leitura e gravação nas abas.
   - `Medicoes.js`, `Usuarios.js`, `Textos.js`: regras de cada área.
+  - `Empenho.js`: módulo de Acompanhamento do Empenho (único com valores em reais).
   - `*.html`: telas e componentes.
 - Acesso às abas sempre pelo nome do cabeçalho, nunca pelo número da coluna fixo no código.
 - Gravações com `LockService.getScriptLock()`.

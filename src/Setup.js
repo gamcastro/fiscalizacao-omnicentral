@@ -16,7 +16,16 @@ const FORMATOS_SETUP = {
   FontesRelatorio: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
   MedicaoFontes: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
   Feriados: { data: 'dd/mm/yyyy' },
-  Log: { timestamp: 'dd/mm/yyyy hh:mm:ss' }
+  Log: { timestamp: 'dd/mm/yyyy hh:mm:ss' },
+  // Módulo de empenho (Fase 7)
+  Empenhos: { dataEmissao: 'dd/mm/yyyy', valorInicial: '#,##0.00',
+    criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  EmpenhoMovimentos: { data: 'dd/mm/yyyy', valor: '#,##0.00',
+    criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  Pagamentos: { dataNF: 'dd/mm/yyyy', valorNF: '#,##0.00',
+    valorPago: '#,##0.00', dataPagamento: 'dd/mm/yyyy',
+    criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' },
+  EmpenhoPrevisoes: { criadoEm: 'dd/mm/yyyy hh:mm', atualizadoEm: 'dd/mm/yyyy hh:mm' }
 };
 
 const DADOS_INICIAIS = {
@@ -42,7 +51,14 @@ const DADOS_INICIAIS = {
       chave: 'EMAILS_LEMBRETE', valor: 'george.castro@tre-ma.jus.br',
       descricao: 'Quem recebe o lembrete do 1º dia útil e o aviso de prazo dos documentos SEI (separar com ;)'
     },
-    { chave: 'FISCAL_TECNICO_ASSINATURA', valor: 'George André Melo Castro', descricao: 'Nome no rodapé do atesto e do despacho' }
+    { chave: 'FISCAL_TECNICO_ASSINATURA', valor: 'George André Melo Castro', descricao: 'Nome no rodapé do atesto e do despacho' },
+    // Módulo de Acompanhamento do Empenho (Fase 7). As vazias são informadas depois pelo superadmin.
+    { chave: 'EMPENHO_EXERCICIO', valor: '2026', descricao: 'Exercício aberto por padrão na tela de empenho' },
+    { chave: 'EMPENHO_MARGEM', valor: 0.1, descricao: 'Margem de segurança da projeção (10%)' },
+    { chave: 'EMPENHO_DATA_LIMITE', valor: '', descricao: 'Data-limite do setor de orçamento para pedir reforço ou anulação no exercício' },
+    { chave: 'EMPENHO_AVISO_DIAS', valor: 15, descricao: 'Dias antes da data-limite em que o painel e o lembrete passam a avisar' },
+    { chave: 'EMPENHO_TOLERANCIA_NF', valor: 1, descricao: 'Diferença em reais entre valor da NF e valor estimado acima da qual o app alerta' },
+    { chave: 'EMPENHO_UNIDADE_DESTINO', valor: '', descricao: 'Unidade destinatária do despacho de reforço/anulação de empenho' }
   ],
   Itens: [
     { item: 1, descricao: 'Subscrição WhatsApp API Oficial (BSP)', unidade: 'Assinatura mensal', tipo: 'FIXO', fonte: '—' },

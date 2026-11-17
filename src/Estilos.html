@@ -356,4 +356,34 @@
     .conteudo { padding: 16px; }
     .cartao { overflow-x: auto; }
   }
+  /* Acompanhamento do Empenho (Fase 7) */
+  .grade-empenho { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card-emp { background: var(--cor-cartao); border: 1px solid var(--cor-borda); border-radius: 6px; padding: 14px 16px; }
+  .card-emp.critico { border-color: var(--cor-erro); background: var(--cor-erro-fundo); }
+  .card-emp-titulo { color: var(--cor-suave); font-size: 13px; margin-bottom: 4px; }
+  .card-emp-valor { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .card-emp-sugerido { display: block; font-size: 18px; }
+  .card-emp.ind-REFORCO { border-color: var(--cor-erro); background: var(--cor-erro-fundo); }
+  .card-emp.ind-REFORCO .card-emp-valor { color: var(--cor-erro); }
+  .card-emp.ind-ANULACAO { border-color: var(--cor-alerta); background: var(--cor-alerta-fundo); }
+  .card-emp.ind-ANULACAO .card-emp-valor { color: var(--cor-alerta); }
+  .card-emp.ind-ADEQUADO { border-color: var(--cor-ok); background: var(--cor-ok-fundo); }
+  .card-emp.ind-ADEQUADO .card-emp-valor { color: var(--cor-ok); }
+  .card-emp.com-prazo { box-shadow: 0 0 0 2px var(--cor-alerta); }
+  .tabela-empenho td, .tabela-empenho th { vertical-align: top; }
+  .tabela-empenho tfoot th { border-top: 2px solid var(--cor-borda); }
+  .tabela-empenho tr.emp-futura td { background: #fafbfc; }
+  .emp-previsto { font-style: italic; }
+  .etiqueta.emp-sit-PAGO { background: var(--cor-ok-fundo); color: var(--cor-ok); }
+  .etiqueta.emp-sit-A_PAGAR { background: var(--cor-alerta-fundo); color: var(--cor-alerta); }
+  .etiqueta.emp-sit-MEDIDA { background: #e8f0fb; color: var(--cor-primaria); }
+  .etiqueta.emp-sit-FUTURA { background: #eef1f4; color: var(--cor-suave); }
+  .etiqueta.emp-ind-REFORCO { background: var(--cor-erro-fundo); color: var(--cor-erro); }
+  .etiqueta.emp-ind-ANULACAO { background: var(--cor-alerta-fundo); color: var(--cor-alerta); }
+  .etiqueta.emp-ind-ADEQUADO { background: var(--cor-ok-fundo); color: var(--cor-ok); }
+  .pai-emp-linha { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-end; }
+  .pai-emp-linha > div { display: flex; flex-direction: column; gap: 2px; }
+  .pai-emp-linha strong { font-size: 18px; }
+  .alerta-prazo-emp { color: var(--cor-alerta); font-weight: 600; }
+  .card-painel-empenho .cabecalho-form { justify-content: space-between; }
 </style>

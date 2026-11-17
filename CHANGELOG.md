@@ -3,6 +3,27 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.11.0] – 17/11/2026 – Fase 7: Acompanhamento do Empenho
+
+Entrega única com a v0.10.0 (montagem dos relatórios e guia rápido), que não chegou a ir sozinha para a produção.
+
+### Incluído
+- Menu "Empenho" (só `SUPERADMIN`, `FISCAL_TECNICO` e `GESTOR`; os demais perfis não veem o menu e o servidor nega o acesso). É o único módulo com valores em reais.
+- Abas `Empenhos`, `EmpenhoMovimentos`, `Pagamentos` e `EmpenhoPrevisoes` e as chaves `EMPENHO_*` da `Config`, criadas pelo `setup()` sem alterar nada que já exista. Sem carga inicial.
+- Cadastro na própria tela de notas de empenho, reforços e anulações, pagamentos (NF, situação a pagar/pago) e previsões manuais, com editar, desativar e reativar. Nada é apagado; tudo vai para o Log.
+- Cálculo da regra 9: empenhado líquido, pago, a pagar, comprometido (competências medidas, em qualquer status, sem pagamento), saldo disponível e necessidade até dezembro nos cenários mínimo, provável (mediana) e máximo; indicação de reforço, anulação ou saldo adequado, com a margem de segurança e o valor sugerido arredondado em centenas.
+- Vigência ainda sem meses medidos usa as medições da vigência anterior, com aviso. Competência antiga sem medição e sem pagamento aparece como "sem dados" e entra na projeção.
+- Tabela mês a mês com quantidades, valor estimado, NF, valor pago, NE usada e alerta da diferença NF × estimado acima da tolerância.
+- Despacho de reforço ou anulação (texto 6.3) com tipo, NE e valor ajustáveis e botão "Copiar".
+- Parâmetros do empenho (exercício padrão, margem, data-limite, dias de aviso, tolerância da NF e unidade destinatária) editáveis só pelo superadmin, dentro da tela do empenho.
+- Card "Empenho" no painel (só para os três perfis), com saldo, indicação e prazo.
+- Lembrete por e-mail: aviso de prazo do empenho ao entrar na janela de `EMPENHO_AVISO_DIAS`, 3 dias úteis antes e no dia da data-limite. O bloco com valores vai só para destinatários ativos com acesso ao módulo. `testarLembrete()` inclui o bloco para quem executa, se tiver acesso.
+- Avisos (sem bloquear) para pagamento maior que o saldo da NE, anulação que deixa a NE negativa e pagamento mensal repetido.
+
+### Observação
+- Nenhuma tela, texto ou aba da fiscalização técnica foi alterada, além do card do painel e do item de menu. Sem permissão nova do Google.
+- Depois de enviar o código, rodar `setup()` no editor do ambiente para criar as abas novas.
+
 ## [0.10.0] – 08/11/2026 – Montagem dos relatórios do mês (substitui o iLovePDF)
 
 ### Incluído

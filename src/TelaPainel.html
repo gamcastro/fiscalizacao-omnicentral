@@ -12,6 +12,15 @@
     <ul id="pai-alertas" class="lista-alertas"></ul>
   </div>
 
+  <!-- Card do módulo de empenho: só SUPERADMIN, FISCAL_TECNICO e GESTOR (os valores vêm de getResumoEmpenho, que confere o perfil). -->
+  <div class="cartao card-painel-empenho" id="pai-empenho" hidden>
+    <div class="cabecalho-form">
+      <h2 id="pai-emp-titulo">Empenho</h2>
+      <a href="#" id="pai-emp-abrir">Abrir acompanhamento do empenho</a>
+    </div>
+    <div id="pai-emp-corpo"></div>
+  </div>
+
   <div class="cartao">
     <h2>Saldo da vigência por item</h2>
     <div id="pai-saldos" class="grade-saldos"></div>
@@ -60,7 +69,40 @@
         Math.min(100, fracao * 100).toFixed(1) + '%"></div></div>';
     }
 
+    function temModuloEmpenho() {
+      return !!(App.contexto && App.contexto.menu.some(function (m) { return m.id === 'empenho'; }));
+    }
+
+    function carregarEmpenho() {
+      if (!temModuloEmpenho()) { el('pai-empenho').hidden = true; return; }
+      el('pai-empenho').hidden = false;
+      el('pai-emp-corpo').innerHTML = '<p class="dica">Carregando…</p>';
+      chamar('getResumoEmpenho')
+        .then(function (r) {
+          if (r.indisponivel) {
+            el('pai-emp-titulo').textContent = 'Empenho';
+            el('pai-emp-corpo').innerHTML = '<p class="dica">' + esc(r.texto) + '</p>';
+            return;
+          }
+          const reais = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+          const ind = r.indicacao;
+          el('pai-emp-titulo').textContent = 'Empenho ' + r.exercicio;
+          el('pai-emp-corpo').innerHTML =
+            '<div class="pai-emp-linha">' +
+              '<div><span class="dica">Saldo disponível</span><strong class="' + (r.saldo < 0 ? 'texto-alerta' : '') + '">' + esc(reais(r.saldo)) + '</strong></div>' +
+              '<div><span class="dica">Necessidade provável até dezembro</span><strong>' + esc(reais(r.necessidadeProvavel)) + '</strong></div>' +
+              '<div><span class="dica">Indicação</span><span class="etiqueta emp-ind-' + esc(ind.tipo) + '">' + esc(ind.texto) + '</span></div>' +
+            '</div>' +
+            (r.semNotas ? '<p class="dica">Nenhuma nota de empenho cadastrada para ' + esc(r.exercicio) + '.</p>' : '') +
+            '<p class="' + (r.prazo.situacao === 'JANELA' ? 'alerta-prazo-emp' : 'dica') + '">' + esc(r.prazo.texto) + '</p>';
+        })
+        .catch(function (erro) {
+          el('pai-emp-corpo').innerHTML = '<p class="dica">Não foi possível carregar o resumo do empenho: ' + esc(erro.message) + '</p>';
+        });
+    }
+
     function carregar() {
+      carregarEmpenho();
       el('pai-alertas').innerHTML = '<li class="vazio">Carregando…</li>';
       return chamar('getPainel')
         .then(function (r) { dados = r; renderizar(); })
@@ -137,6 +179,7 @@
     }
 
     el('pai-atualizar').addEventListener('click', function () { limparMensagem(); carregar(); });
+    el('pai-emp-abrir').addEventListener('click', function (ev) { ev.preventDefault(); irPara('empenho'); });
 
     el('tela-painel').addEventListener('click', function (ev) {
       const alvo = ev.target.closest('[data-abrir], [data-nova]');

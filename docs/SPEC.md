@@ -1,6 +1,6 @@
 # SPEC – Web App de Fiscalização Técnica do Contrato 20/2025
 
-Versão 1 – 08/10/2026 · Responsável: George André Melo Castro (fiscal técnico titular)
+Versão 1 – 08/10/2026 · Atualizada em 17/11/2026 (módulo de Acompanhamento do Empenho) · Responsável: George André Melo Castro (fiscal técnico titular)
 
 ## 1. Contexto
 
@@ -36,6 +36,14 @@ Começa no 1º dia útil do mês seguinte à competência:
 
 O app não acessa o SEI nem o SZ.chat. Os números e os IDs do SEI são digitados.
 
+### 1.3 Acompanhamento do empenho (módulo separado, Fase 7)
+
+Ao longo do ano, a fiscalização precisa saber se o saldo das notas de empenho do exercício cobre as competências até dezembro. Com essa estimativa, decide a tempo se pede **reforço** (vai faltar) ou propõe **anulação** de parte do saldo (vai sobrar).
+
+- O módulo é separado da fiscalização técnica e é o único lugar do app com valores em reais (regra 1 do CLAUDE.md).
+- O valor real vem dos documentos (NE, reforços, anulações, notas fiscais e pagamentos), digitados pelos usuários. O valor estimado de cada competência vem das quantidades medidas × preços de referência.
+- O app só acompanha e projeta. O pedido de reforço ou anulação continua sendo feito no SEI, com o texto que o app gera.
+
 ## 2. Usuários e perfis
 
 O superadmin cadastra todos os usuários. Quem não estiver cadastrado e ativo vê uma tela de "Acesso não autorizado" com o próprio e-mail, para pedir o cadastro.
@@ -49,6 +57,7 @@ O superadmin cadastra todos os usuários. Quem não estiver cadastrado e ativo v
 | `FISCAL_ADMINISTRATIVO` | Titular: Antoniette Conceição de Maria Freitas Coelho · Substituta: Rosinete Maria de Sousa Everton | Ver tudo. |
 
 - Cada usuário tem um perfil e uma condição (Titular ou Substituto). O substituto tem as mesmas permissões do titular.
+- **Módulo de Acompanhamento do Empenho (Fase 7):** `SUPERADMIN`, `FISCAL_TECNICO` e `GESTOR` veem e lançam (empenhos, reforços, anulações, pagamentos e previsões). `FISCAL_DEMANDANTE` e `FISCAL_ADMINISTRATIVO` não veem o módulo nem o card de empenho do painel.
 - Os e-mails dos demais serão informados pelo superadmin na tela de usuários. Não preencher com e-mails supostos.
 
 ## 3. Modelo de dados (abas da planilha)
@@ -70,6 +79,12 @@ Linha 1 de cada aba é o cabeçalho. O código lê as colunas pelo nome do cabe�
 | EMAILS_LEMBRETE | george.castro@tre-ma.jus.br | Destinatários do lembrete do 1º dia útil e do aviso de prazo dos documentos SEI, separados por ";" (v0.6.0) |
 | UNIDADE_PAGAMENTO | ASGEC | Destinatária do despacho de pagamento. ASGEC desde a competência 09/2026; antes, COGECON (mudança informada em 10/10/2026) |
 | FISCAL_TECNICO_ASSINATURA | George André Melo Castro | Nome no rodapé do atesto e do despacho |
+| EMPENHO_EXERCICIO | 2026 | Exercício aberto por padrão na tela de empenho (Fase 7) |
+| EMPENHO_MARGEM | 0,10 | Margem de segurança da projeção (10%) |
+| EMPENHO_DATA_LIMITE | (vazio) | Data-limite do setor de orçamento para pedir reforço ou anulação no exercício. George informa |
+| EMPENHO_AVISO_DIAS | 15 | Dias antes da data-limite em que o painel e o lembrete passam a avisar |
+| EMPENHO_TOLERANCIA_NF | 1,00 | Diferença em reais entre valor da NF e valor estimado acima da qual o app alerta |
+| EMPENHO_UNIDADE_DESTINO | (vazio) | Unidade destinatária do despacho de reforço/anulação. George informa |
 
 ### 3.2 `Usuarios`
 `email` · `nome` · `perfil` · `condicao` (Titular/Substituto) · `ativo` (TRUE/FALSE) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
@@ -110,7 +125,7 @@ Linha inicial: george.castro@tre-ma.jus.br · George André Melo Castro · SUPER
 | V2026 | 8 | 1 |
 | V2026 | 9 | 1 |
 
-### 3.6 `PrecosReferencia` (somente consulta, nunca usada em cálculo)
+### 3.6 `PrecosReferencia` (consulta na fiscalização técnica; usada em cálculo **somente** no módulo de empenho)
 | vigencia | item | valorUnitario | documento |
 |---|---|---|---|
 | V2026 | 1 | 547,91 | Apostila nº 1 |
@@ -136,7 +151,9 @@ Status, em ordem:
 `competencia` · `item` · `quantidade` · `quantidadeRelatorio` (valor bruto do relatório) · `ajusteObs` (ex.: "excluídas 2 msgs da campanha Teste Mudança Sessão") · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
 
 ### 3.9 `Log`
-`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG/EXCLUIR/LEMBRETE) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
+`timestamp` · `email` · `acao` (CRIAR/EDITAR/STATUS/USUARIO/CONFIG/EXCLUIR/LEMBRETE/DESATIVAR) · `entidade` · `chave` · `antes` (JSON) · `depois` (JSON)
+
+Gravações do módulo de empenho usam as mesmas ações, com `entidade` = `Empenhos`, `EmpenhoMovimentos`, `Pagamentos` ou `EmpenhoPrevisoes`.
 
 ### 3.10 Dados iniciais do histórico
 
@@ -173,6 +190,28 @@ Linhas iniciais:
 - Na aba `Medicoes`, o item 5 continua com uma linha só: `quantidade` = soma de `quantidadeConsiderada`, `quantidadeRelatorio` = soma de `quantidadeBruta`. O `ajusteObs` resume as exclusões.
 - O modelo serve para qualquer item, mas na v atual só o item 5 usa fontes múltiplas.
 
+### 3.13 `Empenhos` (uma linha por nota de empenho; módulo de empenho)
+`id` (número da NE, ex.: 2026NE000333) · `exercicio` (AAAA) · `dataEmissao` · `valorInicial` · `idSei` (documento da NE no SEI, opcional) · `obs` · `ativo` (TRUE/FALSE) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+- O contrato pode ter várias NEs no mesmo exercício (hoje 2026NE000333 e 2026NE000334), **sem regra de divisão** entre elas: cada pagamento indica de qual NE saiu.
+- Sem carga inicial: os usuários lançam pela tela quando o módulo estiver pronto.
+- NE lançada por engano é desativada (`ativo` = FALSE), nunca apagada.
+
+### 3.14 `EmpenhoMovimentos` (reforços e anulações)
+`id` (gerado, ex.: MOV-0001) · `empenhoId` · `tipo` (REFORCO/ANULACAO) · `data` · `valor` (sempre positivo; o tipo define o sinal) · `idSei` · `obs` · `ativo` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+### 3.15 `Pagamentos` (o que foi faturado e pago, por competência e NE)
+`id` (gerado, ex.: PAG-0001) · `competencia` (AAAA-MM) · `empenhoId` · `tipo` (MENSAL/RETROATIVO/OUTRO) · `numeroNF` · `dataNF` · `valorNF` · `situacao` (A_PAGAR/PAGO) · `valorPago` · `dataPagamento` · `idSei` · `obs` · `ativo` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+- Uma competência pode ter mais de uma linha (por exemplo, paga com duas NEs, ou uma diferença de reajuste lançada como `RETROATIVO`).
+- `situacao` = PAGO exige `valorPago` e `dataPagamento`.
+- O `exercicio` do pagamento é o da NE usada.
+
+### 3.16 `EmpenhoPrevisoes` (ajuste manual da projeção)
+`exercicio` · `competencia` · `item` · `quantidadePrevista` · `obs` (obrigatória, ex.: "eleição suplementar de Nova Olinda") · `ativo` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+
+- Serve para mês com evento conhecido (eleição suplementar, campanha de notificação, item eventual 6 a 9 previsto). Substitui a quantidade projetada daquele item naquele mês nos três cenários.
+
 ## 4. Regras de negócio
 
 1. **Competência única:** uma linha por mês em `Competencias`. A competência precisa estar dentro de uma vigência cadastrada.
@@ -196,6 +235,28 @@ Linhas iniciais:
    - não pode haver a mesma fonte duas vezes na mesma competência;
    - `exclusoes` > 0 exige `exclusoesObs`;
    - **trava de conferência:** ao passar de `RASCUNHO` para `EM_CONFERENCIA` com uma única fonte (ou nenhuma), o app exige marcar "Confirmo que verifiquei todos os relatórios de mensagens ativas/template do período em Relatórios Premium". A confirmação vai para o Log.
+9. **Acompanhamento do empenho (só no módulo de empenho):**
+   - **Competências do exercício:** os meses de janeiro a dezembro do exercício que estejam dentro de uma vigência cadastrada (em 2026: julho a dezembro). A competência de dezembro é paga em janeiro, mas conta no exercício em que foi prestada.
+   - **Valor estimado da competência** = soma, por item, de quantidade × `valorUnitario` da `PrecosReferencia` da vigência daquela competência, arredondado a 2 casas por item. Se o exercício tiver duas vigências (ex.: 2027), cada mês usa o preço da sua vigência.
+   - **Empenhado líquido** = soma dos `valorInicial` das NEs ativas do exercício + reforços − anulações.
+   - **Pago** = soma de `valorPago` dos pagamentos PAGO do exercício. **A pagar** = soma de `valorNF` dos pagamentos A_PAGAR.
+   - **Comprometido estimado** = valor estimado das competências do exercício com medição lançada e sem pagamento registrado.
+   - **Saldo disponível** = empenhado líquido − pago − a pagar − comprometido estimado.
+   - **Necessidade futura** = competências do exercício ainda sem medição, até dezembro, em três cenários:
+     - parte fixa: itens 1 e 3 (quantidade 1 × preço);
+     - itens 2, 4 e 5: **mínimo** = menor quantidade mensal já medida na vigência; **provável** = mediana das quantidades medidas na vigência; **máximo** = maior quantidade medida;
+     - itens 6 a 9: só entram por previsão manual;
+     - previsão manual (`EmpenhoPrevisoes`) substitui o item naquele mês nos três cenários;
+     - competência anterior sem medição e sem pagamento (ex.: 2026-07) aparece com o aviso "sem dados" e entra na projeção como mês futuro.
+   - **Resultado por cenário** = saldo disponível − necessidade futura do cenário.
+   - **Indicação** (usa a margem `EMPENHO_MARGEM`):
+     - **solicitar reforço** quando o saldo disponível for menor que a necessidade futura provável × (1 + margem); valor sugerido = a diferença, arredondada para cima em centenas de reais;
+     - **avaliar anulação** quando, mesmo no cenário máximo × (1 + margem), ainda sobrar saldo; valor sugerido = a sobra, arredondada para baixo em centenas de reais;
+     - caso contrário, **saldo adequado**.
+   - **Conferência da NF:** se `valorNF` (MENSAL) diferir do valor estimado da competência em mais de `EMPENHO_TOLERANCIA_NF`, o app mostra alerta com a diferença. Não bloqueia.
+   - **Prazo:** com `EMPENHO_DATA_LIMITE` preenchida, o card do painel e o lembrete por e-mail avisam a partir de `EMPENHO_AVISO_DIAS` antes da data, junto com a indicação atual.
+   - **Nada é apagado:** NEs, movimentos, pagamentos e previsões são corrigidos ou desativados, sempre com Log (regra 7).
+   - Valores em reais no formato brasileiro (R$ 1.234,56).
 
 ## 5. Telas
 
@@ -203,6 +264,7 @@ Linhas iniciais:
    - Cards de saldo por item, com quantidade contratada, consumida, saldo e barra de %. Itens ≥ 80% aparecem destacados.
    - Lista de pendências e alertas.
    - Tabela das competências da vigência com status, ANS e indicador de IDs do SEI completos.
+   - Card "Empenho {exercício}" (só `SUPERADMIN`, `FISCAL_TECNICO` e `GESTOR`): saldo disponível, indicação (reforço / anulação / adequado) e aviso de prazo. Leva à tela de empenho.
 2. **Lançar / editar competência (`FISCAL_TECNICO`, `SUPERADMIN`):**
    - Mês da competência.
    - Itens 1 a 4, e eventuais recolhíveis, com campos para quantidade do relatório, quantidade medida e observação de ajuste.
@@ -219,7 +281,14 @@ Linhas iniciais:
 6. **Usuários (`SUPERADMIN`):** cadastrar, editar e ativar/desativar usuários, com perfil e condição.
 7. **Configurações (`SUPERADMIN`):** editar a aba `Config`; cadastrar, editar e excluir feriados e vigências com as quantidades contratadas; ligar/desligar o lembrete por e-mail; consultar os preços de referência (somente leitura). Implementado na v0.7.0.
 
-Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado.
+8. **Acompanhamento do Empenho (`SUPERADMIN`, `FISCAL_TECNICO`, `GESTOR`):**
+   - Seletor de exercício (padrão `EMPENHO_EXERCICIO`).
+   - Cards: empenhado líquido; pago; a pagar + comprometido; saldo disponível; necessidade futura (mínimo / provável / máximo); indicação com valor sugerido e data-limite.
+   - Tabela mês a mês do exercício: competência, quantidades-resumo, valor estimado, NF, valor pago, NE usada, situação e diferença NF × estimado.
+   - Cadastros na própria tela: notas de empenho (com reforços e anulações), pagamentos e previsões manuais, com editar e desativar.
+   - Texto do despacho de reforço ou anulação (seção 6.3) com botão "Copiar".
+
+Navegação por menu lateral. O app mostra o nome e o perfil do usuário logado. O item de menu "Empenho" só aparece para os três perfis do módulo.
 
 ## 6. Modelos de texto (baseados nos documentos de agosto/2026, já corrigidos)
 
@@ -247,6 +316,24 @@ Para este fim, foram incluídos os Relatórios de Fiscalização e o Atesto de R
 Fiscal Técnico do Contrato 20/2025
 ```
 
+### 6.3 Despacho de reforço ou anulação de empenho (só no módulo de empenho)
+```
+À {EMPENHO_UNIDADE_DESTINO},
+Em acompanhamento da execução orçamentária do Contrato nº 20/2025 (OMNICENTRAL), informo a situação das Notas de Empenho do exercício de {EXERCICIO} ({LISTA_NES}):
+• Valor empenhado: R$ {EMPENHADO}.
+• Valor pago: R$ {PAGO}.
+• Valor a pagar e comprometido com competências já medidas: R$ {A_PAGAR_COMPROMETIDO}.
+• Estimativa para as competências de {MESES_RESTANTES}: R$ {NECESSIDADE_PROVAVEL} (mínimo de R$ {NECESSIDADE_MIN} e máximo de R$ {NECESSIDADE_MAX}).
+[se reforço] Diante disso, solicito o reforço de R$ {VALOR} na Nota de Empenho {NE_ESCOLHIDA}, para garantir o pagamento das competências até dezembro de {EXERCICIO}.
+[se anulação] Diante disso, informo que há saldo estimado excedente e sugiro a anulação de R$ {VALOR} da Nota de Empenho {NE_ESCOLHIDA}.
+A estimativa considera as quantidades medidas pela fiscalização e os preços unitários vigentes ({DOCUMENTO_PRECOS}), com margem de segurança de {MARGEM}%.
+{NOME_USUARIO}
+{FUNCAO_USUARIO} do Contrato 20/2025
+```
+- O usuário escolhe na tela o tipo (reforço ou anulação), a NE e pode ajustar o valor sugerido antes de copiar.
+- `{FUNCAO_USUARIO}`: "Gestor" para `GESTOR` e "Fiscal Técnico" para `FISCAL_TECNICO` e `SUPERADMIN`.
+- Se `EMPENHO_UNIDADE_DESTINO` estiver vazia, mostrar `[unidade destinatária]` e um aviso.
+
 Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do primeiro ao último dia do mês.
 
 ## 7. Requisitos técnicos
@@ -261,6 +348,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
 - A função `setup()`, rodada uma vez pelo superadmin:
   - cria as abas com os cabeçalhos;
   - insere os dados iniciais da seção 3 (Config, Usuarios com o superadmin, Itens, Vigencias, QuantidadesContratadas, PrecosReferencia);
+  - a partir da Fase 7, cria também `Empenhos`, `EmpenhoMovimentos`, `Pagamentos` e `EmpenhoPrevisoes` (só cabeçalhos) e as chaves `EMPENHO_*` da `Config` que faltarem;
   - não apaga nada que já exista.
 - Funciona bem em telas de 1366 px ou mais. No celular, basta ficar legível.
 
@@ -279,11 +367,23 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
    - parcelas por fonte no detalhe da competência; o atesto continua só com o total do item 5;
    - competências já lançadas continuam válidas: se não tiverem linhas em `MedicaoFontes`, mostrar o total da aba `Medicoes` com o aviso "sem detalhamento por fonte".
 
+7. **Fase 7 – Acompanhamento do Empenho (pedida em 17/11/2026):**
+   - criar as abas 3.13 a 3.16 e as chaves `EMPENHO_*` pelo `setup()`, sem apagar nada;
+   - `Empenho.js` com a regra 9 e as permissões (`SUPERADMIN`, `FISCAL_TECNICO`, `GESTOR` veem e lançam; demais perfis negados no servidor);
+   - tela "Acompanhamento do Empenho" (seção 5, tela 8), card no painel e texto 6.3;
+   - aviso de prazo no painel e no lembrete por e-mail;
+   - **não alterar** nenhuma tela, texto ou aba da fiscalização técnica, a não ser o card do painel e o item de menu;
+   - sem carga inicial: os dados reais são lançados pela tela, primeiro na homologação (dados de teste) e depois na produção;
+   - roteiro de teste com um exercício fictício na homologação cobrindo os três resultados (reforço, anulação e adequado) e o acesso negado para `FISCAL_DEMANDANTE`;
+   - prioridade: a decisão de reforço ou anulação de 2026 depende deste módulo.
+   - decisões de 17/11/2026: competência em qualquer status (inclusive rascunho) conta como medida; vigência sem meses medidos usa a vigência anterior, com aviso; o bloco do empenho no e-mail vai só para destinatários com acesso ao módulo; o aviso de prazo sai ao entrar na janela, 3 dias úteis antes e no dia; as chaves `EMPENHO_*` são editadas pelo superadmin dentro da tela do empenho (não nas Configurações); pagamento maior que o saldo da NE ou anulação que deixa a NE negativa só geram aviso;
+   - implementada na v0.11.0 (entregue junto com a v0.10.0).
+
 Em cada fase: plano → aprovação → código → `clasp push` → roteiro de teste.
 
 ## 9. Fora do escopo
 
-- Qualquer cálculo ou exibição de valor em reais, além da consulta da aba `PrecosReferencia`.
-- Nota fiscal, empenho e pagamento.
+- Qualquer cálculo ou exibição de valor em reais **fora do módulo de Acompanhamento do Empenho** (na fiscalização técnica, preços só para consulta).
+- Emitir, reforçar ou anular empenho no SIAFI e qualquer integração com sistemas financeiros ou orçamentários. O app só acompanha e projeta; os pedidos seguem pelo SEI.
 - Integração com o SEI ou com o SZ.chat.
 - Contrato 99/2024 (4D). Só pode entrar numa versão futura, então não generalizar agora sem pedido.

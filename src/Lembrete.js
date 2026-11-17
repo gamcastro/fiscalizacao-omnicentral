@@ -32,20 +32,38 @@ function verificarLembretesDiarios() {
     const prazo = prazoIdsSei_(c.competencia, feriados);
     if (hoje > prazo) motivos.push({ chave: 'prazo/' + c.competencia, tipo: 'prazo', competencia: c.competencia, prazo: prazo, faltando: c.idsFaltando });
   });
-  if (!motivos.length) return 'Sem lembretes para hoje.';
+  // Aviso de prazo do empenho (Fase 7). Um erro no módulo de empenho não impede o lembrete da fiscalização.
+  let empenho = null;
+  try {
+    empenho = avisoEmpenhoDoDia_(hoje, feriados, enviados, false);
+  } catch (e) {
+    console.error('Aviso do empenho não montado: ' + e.message);
+  }
+  if (!motivos.length && !empenho) return 'Sem lembretes para hoje.';
 
+  // O bloco do empenho (com valores em reais) só vai para quem tem acesso ao módulo (decisão de 17/11/2026).
   const destinatarios = destinatariosLembrete_();
-  const email = montarEmailLembrete_(motivos, painel);
-  enviarEmailLembrete_(destinatarios, email);
+  const comAcesso = empenho ? emailsComAcessoEmpenho_() : {};
+  const envios = [];
+  const comEmpenho = empenho ? destinatarios.filter(function (e) { return comAcesso[e]; }) : [];
+  const semEmpenho = destinatarios.filter(function (e) { return comEmpenho.indexOf(e) < 0; });
+  if (comEmpenho.length) envios.push({ para: comEmpenho, email: montarEmailLembrete_(motivos, painel, empenho) });
+  if (semEmpenho.length && motivos.length) envios.push({ para: semEmpenho, email: montarEmailLembrete_(motivos, painel, null) });
+  if (!envios.length) return 'O aviso do empenho não tem destinatário com acesso ao módulo: nada enviado.';
+  // Na homologação tudo vai para quem executa: um e-mail só.
+  (ehHomologacao_() ? envios.slice(0, 1) : envios).forEach(function (env) { enviarEmailLembrete_(env.para, env.email); });
 
+  const chaves = motivos.map(function (m) { return m.chave; })
+    .concat(empenho && comEmpenho.length ? empenho.chaves : []);
   comLock_(function () {
-    incluir_(ABAS.LOG, motivos.map(function (m) {
-      const log = montarLog_('LEMBRETE', 'Lembrete', m.chave, null, { destinatarios: destinatarios.join('; '), assunto: email.assunto });
+    incluir_(ABAS.LOG, chaves.map(function (chave) {
+      const para = chave.indexOf('empenho/') === 0 ? comEmpenho : envios.reduce(function (a, env) { return a.concat(env.para); }, []);
+      const log = montarLog_('LEMBRETE', 'Lembrete', chave, null, { destinatarios: para.join('; '), assunto: envios[0].email.assunto });
       log.email = '(gatilho diário)';
       return log;
     }));
   });
-  return 'Lembrete enviado para ' + destinatarios.join(', ') + ': ' + email.assunto;
+  return envios.map(function (env) { return 'Lembrete enviado para ' + env.para.join(', ') + ': ' + env.email.assunto; }).join(' | ');
 }
 
 /** Superadmin, só na produção: cria (ou recria) o gatilho diário das 8h. */
@@ -89,9 +107,16 @@ function testarLembrete() {
     const prazo = prazoIdsSei_(c.competencia, feriados);
     if (hoje > prazo) motivos.push({ tipo: 'prazo', competencia: c.competencia, prazo: prazo, faltando: c.idsFaltando });
   });
-  const email = montarEmailLembrete_(motivos, painel);
-  email.assunto = '[TESTE] ' + email.assunto;
   const para = Session.getEffectiveUser().getEmail();
+  // Bloco do empenho só se quem executa tem acesso ao módulo; no teste ele sai mesmo fora da janela do prazo.
+  let empenho = null;
+  try {
+    if (emailsComAcessoEmpenho_()[normalizarEmail_(para)]) empenho = avisoEmpenhoDoDia_(hoje, feriados, {}, true);
+  } catch (e) {
+    console.error('Aviso do empenho não montado: ' + e.message);
+  }
+  const email = montarEmailLembrete_(motivos, painel, empenho);
+  email.assunto = '[TESTE] ' + email.assunto;
   enviarEmailLembrete_([para], email);
   const msg = 'E-mail de teste enviado para ' + para + ': ' + email.assunto;
   console.log(msg);
@@ -138,16 +163,24 @@ function enviarEmailLembrete_(destinatarios, email) {
   MailApp.sendEmail({ to: para.join(','), subject: assunto, htmlBody: email.html, body: email.texto, name: NOME_REMETENTE });
 }
 
-/** motivos: [{ tipo: 'inicio' | 'prazo', competencia, prazo?, faltando? }] */
-function montarEmailLembrete_(motivos, painel) {
+/**
+ * motivos: [{ tipo: 'inicio' | 'prazo', competencia, prazo?, faltando? }]
+ * empenho: aviso do módulo de empenho (avisoEmpenhoDoDia_) ou null. Só para quem tem acesso ao módulo.
+ */
+function montarEmailLembrete_(motivos, painel, empenho) {
   const url = ScriptApp.getService().getUrl() || '';
   const unidade = String(lerConfig_().UNIDADE_PAGAMENTO || 'unidade de pagamento');
   const inicio = motivos.filter(function (m) { return m.tipo === 'inicio'; })[0];
   const prazos = motivos.filter(function (m) { return m.tipo === 'prazo'; });
 
-  const assunto = inicio
-    ? 'Iniciar a fiscalização da competência ' + rotuloCompetencia_(inicio.competencia) + ' – Contrato 20/2025'
-    : 'Prazo vencido: documentos SEI da competência ' + prazos.map(function (p) { return rotuloCompetencia_(p.competencia); }).join(', ');
+  let assunto;
+  if (inicio) {
+    assunto = 'Iniciar a fiscalização da competência ' + rotuloCompetencia_(inicio.competencia) + ' – Contrato 20/2025';
+  } else if (prazos.length) {
+    assunto = 'Prazo vencido: documentos SEI da competência ' + prazos.map(function (p) { return rotuloCompetencia_(p.competencia); }).join(', ');
+  } else {
+    assunto = (empenho ? empenho.assunto : 'Lembrete') + ' – Contrato 20/2025';
+  }
 
   const blocos = [];
   if (inicio) {
@@ -172,6 +205,7 @@ function montarEmailLembrete_(motivos, painel) {
       })
     });
   }
+  if (empenho) blocos.push(empenho.bloco);
   blocos.push({
     titulo: 'Pendências atuais do painel',
     itens: painel.alertas.length ? painel.alertas.map(function (a) { return a.texto; }) : ['Nenhuma pendência.']

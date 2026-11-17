@@ -17,7 +17,12 @@ const ABAS = {
   FONTES: 'FontesRelatorio',
   MED_FONTES: 'MedicaoFontes',
   FERIADOS: 'Feriados',
-  LOG: 'Log'
+  LOG: 'Log',
+  // Módulo de Acompanhamento do Empenho (Fase 7): só o Empenho.js grava nestas abas.
+  EMPENHOS: 'Empenhos',
+  EMP_MOVIMENTOS: 'EmpenhoMovimentos',
+  PAGAMENTOS: 'Pagamentos',
+  EMP_PREVISOES: 'EmpenhoPrevisoes'
 };
 
 /** Cabeçalhos esperados de cada aba (SPEC, seção 3). */
@@ -37,7 +42,15 @@ const CABECALHOS = {
   MedicaoFontes: ['competencia', 'item', 'fonteId', 'fonteNome', 'quantidadeBruta', 'exclusoes', 'exclusoesObs',
     'quantidadeConsiderada', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
   Feriados: ['data', 'descricao'],
-  Log: ['timestamp', 'email', 'acao', 'entidade', 'chave', 'antes', 'depois']
+  Log: ['timestamp', 'email', 'acao', 'entidade', 'chave', 'antes', 'depois'],
+  Empenhos: ['id', 'exercicio', 'dataEmissao', 'valorInicial', 'idSei', 'obs', 'ativo',
+    'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  EmpenhoMovimentos: ['id', 'empenhoId', 'tipo', 'data', 'valor', 'idSei', 'obs', 'ativo',
+    'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  Pagamentos: ['id', 'competencia', 'empenhoId', 'tipo', 'numeroNF', 'dataNF', 'valorNF', 'situacao',
+    'valorPago', 'dataPagamento', 'idSei', 'obs', 'ativo', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+  EmpenhoPrevisoes: ['exercicio', 'competencia', 'item', 'quantidadePrevista', 'obs', 'ativo',
+    'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor']
 };
 
 function planilha_() {
