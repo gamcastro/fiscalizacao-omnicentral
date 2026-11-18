@@ -840,18 +840,7 @@ function lerPdfNe(nome, base64) {
   requirePerfil_(perfisEmpenho_());
   exigirAbasEmpenho_();
   const arquivo = String(nome || 'nota_de_empenho.pdf').slice(0, 200);
-  let bytes;
-  try {
-    bytes = Utilities.base64Decode(String(base64 || ''));
-  } catch (e) {
-    throw new Error('Não foi possível ler o arquivo "' + arquivo + '".');
-  }
-  if (!bytes.length) throw new Error('O arquivo "' + arquivo + '" está vazio.');
-  if (bytes.length > 20 * 1024 * 1024) throw new Error('O arquivo "' + arquivo + '" passa de 20 MB.');
-  if (bytes[0] !== 37 || bytes[1] !== 80 || bytes[2] !== 68 || bytes[3] !== 70) {
-    throw new Error('O arquivo "' + arquivo + '" não é um PDF.');
-  }
-  const texto = textoDoBlob_(Utilities.newBlob(bytes, MimeType.PDF, arquivo), arquivo);
+  const texto = textoDePdfEnviado_(arquivo, base64);
   let lido;
   try {
     lido = interpretarTextoNe_(texto, arquivo, String(lerConfig_().CNPJ || ''));
@@ -1086,6 +1075,212 @@ function compararNeImportada_(lido, ne, movimentosAtivos) {
 
 function generoMovimento_(tipo) {
   return tipo === 'ANULACAO' ? { artigo: 'A', final: 'a' } : { artigo: 'O', final: 'o' };
+}
+
+/** Texto de um PDF enviado pelo navegador (base64). O PDF não é guardado. */
+function textoDePdfEnviado_(arquivo, base64) {
+  let bytes;
+  try {
+    bytes = Utilities.base64Decode(String(base64 || ''));
+  } catch (e) {
+    throw new Error('Não foi possível ler o arquivo "' + arquivo + '".');
+  }
+  if (!bytes.length) throw new Error('O arquivo "' + arquivo + '" está vazio.');
+  if (bytes.length > 20 * 1024 * 1024) throw new Error('O arquivo "' + arquivo + '" passa de 20 MB.');
+  if (bytes[0] !== 37 || bytes[1] !== 80 || bytes[2] !== 68 || bytes[3] !== 70) {
+    throw new Error('O arquivo "' + arquivo + '" não é um PDF.');
+  }
+  return textoDoBlob_(Utilities.newBlob(bytes, MimeType.PDF, arquivo), arquivo);
+}
+
+/* ---------- Importação do pagamento pela NF e pela OB (decisões de 18/11/2026) ---------- */
+
+/**
+ * Lê a NF (NFS-e) e/ou a OB do SIAFI enviadas pelo navegador e devolve a SUGESTÃO para o
+ * formulário de pagamento. Nada é gravado: o fiscal confere e salva pelo formulário.
+ * arquivos: [{ nome, base64 }] (1 ou 2).
+ * Retorno: { sugestao: {id, competencia, empenhoId, tipo, numeroNF, dataNF, valorNF, situacao, valorPago,
+ *            dataPagamento, idSei, obs}, existente, avisos, arquivos: [{nome, tipo, texto}] }
+ */
+function lerPdfsPagamento(arquivos) {
+  requirePerfil_(perfisEmpenho_());
+  exigirAbasEmpenho_();
+  arquivos = arquivos || [];
+  if (!arquivos.length || arquivos.length > 2) throw new Error('Escolha a NF, a OB ou as duas (no máximo 2 arquivos).');
+  const config = lerConfig_();
+  const cnpj = String(config.CNPJ || '');
+  const lidos = { nf: null, ob: null };
+  const saida = [];
+  arquivos.forEach(function (a) {
+    const nome = String(a.nome || 'arquivo.pdf').slice(0, 200);
+    const texto = textoDePdfEnviado_(nome, a.base64);
+    const tipo = tipoDocumentoPagamento_(texto);
+    saida.push({ nome: nome, tipo: tipo, texto: texto });
+    if (!tipo) throw new Error('O arquivo "' + nome + '" não foi reconhecido como NFS-e nem como ordem bancária (OB) do SIAFI.');
+    if (lidos[tipo]) throw new Error('Foram escolhidas duas ' + (tipo === 'nf' ? 'notas fiscais' : 'OBs') + '. Escolha uma NF e/ou uma OB do mesmo pagamento.');
+    lidos[tipo] = tipo === 'nf' ? interpretarTextoNf_(texto) : interpretarTextoOb_(texto);
+  });
+  const r = montarSugestaoPagamento_(lidos.nf, lidos.ob, {
+    cnpj: cnpj,
+    tolerancia: numeroConfigOu_(config, 'EMPENHO_TOLERANCIA_NF', 1),
+    empenhos: lerEmpenhos_(),
+    pagamentos: lerPagamentos_()
+  });
+  r.arquivos = saida;
+  return r;
+}
+
+/** 'nf', 'ob' ou '' (sem dependência do Apps Script). */
+function tipoDocumentoPagamento_(texto) {
+  const t = String(texto || '');
+  if (/ORDEM\s+BANCARIA|CONOB/i.test(t) && /\d{4}OB\d{6}/.test(t)) return 'ob';
+  if (/Nota\s+Fiscal\s+de\s+Servi[cç]o/i.test(t) || /NFS-?e/i.test(t)) return 'nf';
+  return '';
+}
+
+/** Dígitos do CNPJ da contratada aparecem no texto? (sem CNPJ na Config, não confere). */
+function textoTemCnpj_(texto, cnpj) {
+  const d = String(cnpj || '').replace(/\D/g, '');
+  return !d || String(texto || '').replace(/[.\/\-\s]/g, '').indexOf(d) >= 0;
+}
+
+/** NFS-e (padrão nacional): número, emissão, valor total (bruto), valor líquido e período. */
+function interpretarTextoNf_(texto) {
+  const t = String(texto || '').replace(/ /g, ' ');
+  const dinheiro = '(\\d{1,3}(?:\\.\\d{3})*,\\d{2})(?!\\d)';
+  const pega = function (re) { const m = t.match(re); return m ? m[1] : ''; };
+  const numero = pega(/N[uú]mero\s+da\s+NFS-?e\s*:?\s*(\d{1,15})\b/i);
+  const emissao = t.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s+\d{2}:\d{2}/);
+  const total = pega(new RegExp('Valor\\s+Total\\s*:?\\s*' + dinheiro, 'i')) || pega(new RegExp('Valor\\s+Servi[cç]o\\s*:?\\s*' + dinheiro, 'i'));
+  const liquido = pega(new RegExp('Valor\\s+L[ií]quido\\s*:?\\s*' + dinheiro, 'i'));
+  const periodo = t.match(/Per[ií]odo\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|até|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  return {
+    texto: t,
+    numero: numero ? String(Number(numero)) : '',
+    dataEmissao: emissao ? emissao[3] + '-' + emissao[2] + '-' + emissao[1] : '',
+    valorTotal: total ? reaisDoPdf_(total) : null,
+    valorLiquido: liquido ? reaisDoPdf_(liquido) : null,
+    competencia: periodo ? periodo[3] + '-' + periodo[2] : '',
+    periodoOutroMes: !!periodo && (periodo[3] + periodo[2]) !== (periodo[6] + periodo[5])
+  };
+}
+
+const MESES_ABREV_OB = { JAN: 1, FEV: 2, FEB: 2, MAR: 3, ABR: 4, APR: 4, MAI: 5, MAY: 5, JUN: 6, JUL: 7, AGO: 8, AUG: 8,
+  SET: 9, SEP: 9, OUT: 10, OCT: 10, NOV: 11, DEZ: 12, DEC: 12 };
+
+/** "18Jun26" ou "18Jun2026" → '2026-06-18'. */
+function dataSiafi_(dia, mes, ano) {
+  const m = MESES_ABREV_OB[String(mes).toUpperCase()];
+  if (!m) return '';
+  const a = String(ano).length === 2 ? '20' + ano : String(ano);
+  return a + '-' + ('0' + m).slice(-2) + '-' + ('0' + dia).slice(-2);
+}
+
+/** OB do SIAFI (CONOB): número, data, valor, favorecido, NE(s), NF citada e mês de referência. */
+function interpretarTextoOb_(texto) {
+  const t = String(texto || '').replace(/ /g, ' ');
+  const numero = (t.match(/\b(\d{4}OB\d{6})\b/) || [])[1] || '';
+  const liq = t.match(/LIQUIDACAO\s*:?\s*(\d{2})([A-Za-z]{3})(\d{4}|\d{2})\b/i);
+  const emi = t.match(/DATA\s+EMISSAO\s*:?\s*(\d{2})([A-Za-z]{3})(\d{4}|\d{2})\b/i);
+  const data = liq ? dataSiafi_(liq[1], liq[2], liq[3]) : emi ? dataSiafi_(emi[1], emi[2], emi[3]) : '';
+  const valor = (t.match(/VALOR\s*:\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/i) || [])[1];
+  const favorecido = ((t.match(/FAVORECIDO\s*:\s*([\d.\/\-]{14,20})/i) || [])[1] || '').replace(/\D/g, '');
+  const nes = (t.match(/\d{4}NE\d{6}/g) || []).filter(function (v, i, a) { return a.indexOf(v) === i; });
+  const nf = (t.match(/\bNF\s*(?:N[º°o]\.?\s*)?(\d{1,15})\b/i) || [])[1] || '';
+  const mes = t.match(/M[EÊ]S\s+DE\s+([A-ZÇ]+)\s+DE\s+(\d{4})/i);
+  let competencia = '';
+  if (mes) {
+    const nomeMes = mes[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const i = MESES_EMPENHO.map(function (x) { return x.normalize('NFD').replace(/[̀-ͯ]/g, ''); }).indexOf(nomeMes);
+    if (i >= 0) competencia = mes[2] + '-' + ('0' + (i + 1)).slice(-2);
+  }
+  return {
+    texto: t, numero: numero, data: data, valor: valor ? reaisDoPdf_(valor) : null,
+    favorecido: favorecido, nes: nes, nf: nf ? String(Number(nf)) : '', competencia: competencia
+  };
+}
+
+/**
+ * Junta NF e OB na sugestão do formulário (sem dependência do Apps Script; testável).
+ * Valor da NF e valor pago = valor TOTAL (bruto) da NF; a OB confirma o pagamento e a data.
+ * Se já existe pagamento ativo com o mesmo número de NF, a sugestão é a edição dele.
+ */
+function montarSugestaoPagamento_(nf, ob, ctx) {
+  const avisos = [];
+  const tolerancia = Number(ctx.tolerancia) || 0;
+  if (nf) {
+    if (!textoTemCnpj_(nf.texto, ctx.cnpj)) avisos.push('O CNPJ da contratada (' + ctx.cnpj + ') não aparece na NF. Confira se a nota é da Omnicentral.');
+    if (!nf.numero) avisos.push('Não encontrei o número da NFS-e: preencha à mão.');
+    if (!nf.dataEmissao) avisos.push('Não encontrei a data de emissão da NF: preencha à mão.');
+    if (nf.valorTotal === null) avisos.push('Não encontrei o valor total da NF: preencha à mão.');
+    if (nf.periodoOutroMes) avisos.push('O período da NF passa de um mês: confira a competência.');
+  }
+  if (ob) {
+    const d = String(ctx.cnpj || '').replace(/\D/g, '');
+    if (d && ob.favorecido && ob.favorecido !== d) avisos.push('O favorecido da OB ' + ob.numero + ' não é a contratada.');
+    if (!ob.data) avisos.push('Não encontrei a data da OB: preencha a data do pagamento à mão.');
+    if (ob.nes.length > 1) avisos.push('A OB cita mais de uma NE (' + ob.nes.join(', ') + '): foi sugerida a primeira.');
+    if (!ob.nes.length) avisos.push('Não encontrei a NE na OB: escolha a nota de empenho à mão.');
+  }
+  if (nf && ob) {
+    if (ob.nf && nf.numero && ob.nf !== nf.numero) avisos.push('A OB cita a NF ' + ob.nf + ', mas a NF escolhida é a ' + nf.numero + '. Confira se são do mesmo pagamento.');
+    if (ob.valor !== null && nf.valorLiquido !== null && Math.abs(ob.valor - nf.valorLiquido) > tolerancia) {
+      avisos.push('O valor da OB (' + formatarReais_(ob.valor) + ') difere do valor líquido da NF (' + formatarReais_(nf.valorLiquido) +
+        ') em ' + formatarReais_(arred2_(ob.valor - nf.valorLiquido)) + '.');
+    }
+    if (nf.competencia && ob.competencia && nf.competencia !== ob.competencia) {
+      avisos.push('O período da NF (' + rotuloMesEmpenho_(nf.competencia) + ') é diferente do mês citado na OB (' + rotuloMesEmpenho_(ob.competencia) + '). Foi usado o da NF.');
+    }
+  }
+
+  const numeroNF = (nf && nf.numero) || (ob && ob.nf) || '';
+  const existente = numeroNF ? (ctx.pagamentos || []).find(function (p) {
+    return p.ativo && String(Number(p.numeroNF.replace(/\D/g, '') || NaN)) === numeroNF;
+  }) : null;
+
+  const s = existente ? {
+    id: existente.id, competencia: existente.competencia, empenhoId: existente.empenhoId, tipo: existente.tipo,
+    numeroNF: existente.numeroNF, dataNF: existente.dataNF, valorNF: existente.valorNF, situacao: existente.situacao,
+    valorPago: existente.valorPago, dataPagamento: existente.dataPagamento, idSei: existente.idSei, obs: existente.obs
+  } : { id: '', competencia: '', empenhoId: '', tipo: 'MENSAL', numeroNF: '', dataNF: '', valorNF: null, situacao: 'A_PAGAR',
+    valorPago: null, dataPagamento: '', idSei: '', obs: '' };
+
+  if (existente) {
+    avisos.unshift('Já existe o pagamento ' + existente.id + ' com a NF ' + numeroNF + ': ele foi aberto para edição com os dados importados.');
+    if (nf && nf.valorTotal !== null && Math.abs(nf.valorTotal - existente.valorNF) >= 0.005) {
+      avisos.push('O valor da NF no pagamento ' + existente.id + ' (' + formatarReais_(existente.valorNF) + ') é diferente do valor total da NF importada (' +
+        formatarReais_(nf.valorTotal) + '). Foi sugerido o da NF importada.');
+    }
+  }
+  if (nf) {
+    if (nf.competencia) s.competencia = nf.competencia;
+    if (nf.numero) s.numeroNF = nf.numero;
+    if (nf.dataEmissao) s.dataNF = nf.dataEmissao;
+    if (nf.valorTotal !== null) s.valorNF = nf.valorTotal;
+  }
+  if (ob) {
+    if (!s.competencia && ob.competencia) s.competencia = ob.competencia;
+    if (!s.numeroNF && ob.nf) s.numeroNF = ob.nf;
+    if (ob.nes.length) s.empenhoId = ob.nes[0];
+    s.situacao = 'PAGO';
+    s.valorPago = s.valorNF;
+    if (ob.data) s.dataPagamento = ob.data;
+    if (s.valorNF === null) avisos.push('Só a OB foi lida e não há pagamento cadastrado com a NF ' + (s.numeroNF || '') +
+      ': importe também a NF, ou informe o valor total (bruto) da NF à mão. O valor pago é o bruto da NF, não o da OB.');
+  }
+  if (!s.competencia) avisos.push('Não encontrei a competência (período da NF ou mês citado na OB): preencha à mão.');
+  if (!s.empenhoId) avisos.push('A NF não informa a nota de empenho: escolha a NE no formulário.');
+  if (s.empenhoId) {
+    const ne = (ctx.empenhos || []).find(function (e) { return e.id === s.empenhoId; });
+    if (!ne) avisos.push('A NE ' + s.empenhoId + ' da OB não está cadastrada. Importe a NE antes de salvar o pagamento.');
+    else if (!ne.ativo) avisos.push('A NE ' + s.empenhoId + ' da OB está desativada.');
+  }
+  const partesObs = [];
+  if (nf && nf.numero) partesObs.push('NF ' + nf.numero);
+  if (ob && ob.numero) partesObs.push('OB ' + ob.numero + (ob.valor !== null ? ' (líquido ' + formatarReais_(ob.valor) + ')' : ''));
+  if (partesObs.length && (!s.obs || !existente)) s.obs = 'Importado: ' + partesObs.join(' · ') + '.';
+  else if (partesObs.length && s.obs.indexOf(partesObs[partesObs.length - 1]) < 0) s.obs = (s.obs + ' Importado: ' + partesObs.join(' · ') + '.').slice(0, 500);
+  return { sugestao: s, existente: !!existente, avisos: avisos };
 }
 
 /** dados: { id (vazio = novo), competencia, empenhoId, tipo, numeroNF, dataNF, valorNF, situacao, valorPago, dataPagamento, idSei, obs } */

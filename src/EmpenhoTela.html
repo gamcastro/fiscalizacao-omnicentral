@@ -113,8 +113,13 @@
   <div class="cartao emp-painel" data-painel="pagamentos" hidden>
     <div class="cabecalho-form">
       <h2>Pagamentos com as NEs de <span class="emp-ano"></span></h2>
-      <button type="button" id="emp-pag-novo" class="botao primario">Novo pagamento</button>
+      <div class="acoes">
+        <button type="button" id="emp-pag-novo" class="botao primario">Novo pagamento</button>
+        <button type="button" id="emp-pag-imp-botao" class="botao">Importar NF e OB (PDF)</button>
+        <input type="file" id="emp-pag-imp-arquivo" accept="application/pdf,.pdf" multiple hidden>
+      </div>
     </div>
+    <p class="dica">Importar: escolha a NF, a OB ou as duas do mesmo pagamento. O formulário é preenchido para você conferir e salvar. Só a NF → "A pagar"; com a OB → "Pago" (valor pago = valor bruto da NF). Só a OB de uma NF já lançada → abre aquele pagamento para edição.</p>
     <table class="tabela">
       <thead>
         <tr>
@@ -127,6 +132,7 @@
 
     <form id="emp-pag-form" class="bloco-form" autocomplete="off" hidden>
       <h3 id="emp-pag-titulo">Novo pagamento</h3>
+      <div id="emp-pag-imp-avisos" class="avisos" hidden></div>
       <div class="grade-form">
         <label>Competência<input type="month" id="emp-pag-comp"></label>
         <label>Nota de empenho<select id="emp-pag-ne"></select></label>
@@ -143,6 +149,7 @@
         <label class="largo">Observação<input type="text" id="emp-pag-obs"></label>
       </div>
       <p id="emp-pag-estimado" class="dica"></p>
+      <div id="emp-pag-imp-textos"></div>
       <div class="acoes">
         <button type="submit" class="botao primario">Salvar pagamento</button>
         <button type="button" class="botao" data-fechar="emp-pag-form">Cancelar</button>
@@ -499,7 +506,39 @@
       el('emp-pag-datapag').value = p ? p.dataPagamento : '';
       el('emp-pag-sei').value = p ? p.idSei : '';
       el('emp-pag-obs').value = p ? p.obs : '';
+      el('emp-pag-imp-avisos').hidden = true;
+      el('emp-pag-imp-textos').innerHTML = '';
       atualizarFormPagamento();
+    }
+
+    /** Preenche o formulário com a sugestão lida da NF/OB (nada é gravado até "Salvar pagamento"). */
+    function preencherPagamentoImportado(r) {
+      const s = r.sugestao;
+      const existente = r.existente ? dados.pagamentos.find(function (p) { return p.id === s.id; }) : null;
+      abrirPagamento(existente || null);
+      el('emp-pag-titulo').textContent = (existente ? 'Editar pagamento ' + s.id : 'Novo pagamento') + ' (importado – confira antes de salvar)';
+      if (s.competencia) el('emp-pag-comp').value = s.competencia;
+      const avisos = (r.avisos || []).slice();
+      if (s.empenhoId) {
+        if (dados.empenhos.some(function (e) { return e.ativo && e.id === s.empenhoId; })) el('emp-pag-ne').value = s.empenhoId;
+        else if (s.empenhoId.slice(0, 4) !== dados.exercicio) avisos.push('A NE ' + s.empenhoId + ' é de ' + s.empenhoId.slice(0, 4) + ': troque o exercício no alto da tela e importe de novo.');
+      }
+      el('emp-pag-tipo').value = s.tipo || 'MENSAL';
+      el('emp-pag-nf').value = s.numeroNF || '';
+      el('emp-pag-datanf').value = s.dataNF || '';
+      el('emp-pag-valornf').value = valorCampo(s.valorNF);
+      el('emp-pag-situacao').value = s.situacao;
+      el('emp-pag-valorpago').value = s.situacao === 'PAGO' ? valorCampo(s.valorPago) : '';
+      el('emp-pag-datapag').value = s.dataPagamento || '';
+      el('emp-pag-sei').value = s.idSei || '';
+      el('emp-pag-obs').value = s.obs || '';
+      atualizarFormPagamento();
+      el('emp-pag-imp-avisos').hidden = !avisos.length;
+      el('emp-pag-imp-avisos').innerHTML = avisos.map(function (a) { return '<p>⚠ ' + esc(a) + '</p>'; }).join('');
+      el('emp-pag-imp-textos').innerHTML = (r.arquivos || []).map(function (a) {
+        return '<details class="mont-texto"><summary>ver texto lido – ' + esc(a.tipo === 'nf' ? 'NF' : 'OB') + ' (' + esc(a.nome) + ')</summary><pre>' +
+          esc(a.texto) + '</pre></details>';
+      }).join('');
     }
 
     function atualizarFormPagamento() {
@@ -661,6 +700,22 @@
           return { tipo: m.tipo, data: m.data, valor: m.valor, idSei: sei[i] || '' };
         })
       }));
+    });
+
+    el('emp-pag-imp-botao').addEventListener('click', function () { el('emp-pag-imp-arquivo').click(); });
+    el('emp-pag-imp-arquivo').addEventListener('change', function () {
+      const escolhidos = Array.prototype.slice.call(this.files || []);
+      this.value = '';
+      if (!escolhidos.length) return;
+      limparMensagem();
+      if (escolhidos.length > 2) { mostrarMensagem('Escolha no máximo 2 arquivos: a NF e a OB do mesmo pagamento.', 'erro'); return; }
+      ocupado(true);
+      Promise.all(escolhidos.map(function (a) {
+        return lerArquivoBase64(a).then(function (b64) { return { nome: a.name, base64: b64 }; });
+      }))
+        .then(function (lista) { return chamar('lerPdfsPagamento', lista); })
+        .then(function (r) { ocupado(false); preencherPagamentoImportado(r); })
+        .catch(function (erro) { ocupado(false); mostrarMensagem(erro.message, 'erro'); window.scrollTo(0, 0); });
     });
 
     el('emp-ne-nova').addEventListener('click', function () { abrirNe(null); });
