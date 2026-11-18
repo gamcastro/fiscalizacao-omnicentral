@@ -1151,8 +1151,16 @@ function interpretarTextoNf_(texto) {
   const pega = function (re) { const m = t.match(re); return m ? m[1] : ''; };
   const numero = pega(/N[uú]mero\s+da\s+NFS-?e\s*:?\s*(\d{1,15})\b/i);
   const emissao = t.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s+\d{2}:\d{2}/);
-  const total = pega(new RegExp('Valor\\s+Total\\s*:?\\s*' + dinheiro, 'i')) || pega(new RegExp('Valor\\s+Servi[cç]o\\s*:?\\s*' + dinheiro, 'i'));
-  const liquido = pega(new RegExp('Valor\\s+L[ií]quido\\s*:?\\s*' + dinheiro, 'i'));
+  // Layout municipal ("Valor Total 4.487,63") e DANFSe nacional ("VALOR DA OPERAÇÃO / SERVIÇO R$ 6.702,94").
+  const rs = '(?:R\\$\\s*)?';
+  const total = pega(new RegExp('Valor\\s+Total\\s*:?\\s*' + rs + dinheiro, 'i')) ||
+    pega(new RegExp('Valor\\s+da\\s+Opera[cç][aã]o\\s*/\\s*Servi[cç]o\\s*:?\\s*' + rs + dinheiro, 'i')) ||
+    pega(new RegExp('\\|\\s*Total\\s*:\\s*' + rs + dinheiro, 'i')) ||
+    pega(new RegExp('Valor\\s+Servi[cç]o\\s*:?\\s*' + rs + dinheiro, 'i'));
+  // Líquido: no DANFSe, o "Líquido" das informações complementares já desconta PIS/COFINS/CSLL/IR
+  // (é o que a OB paga); o "VALOR LÍQUIDO DA NFS-e" de cima, não.
+  const liquido = pega(new RegExp('\\|\\s*L[ií]quido\\s*:\\s*' + rs + dinheiro, 'i')) ||
+    pega(new RegExp('Valor\\s+L[ií]quido(?:\\s+da\\s+NFS-?e)?\\s*:?\\s*' + rs + dinheiro, 'i'));
   // "Período: 01/05/2026 a 31/05/2026" ou "Período de 01/06/2026 a 30/06/2026".
   const periodo = t.match(/Per[ií]odo\s*:?\s*(?:de\s+)?(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|até|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i);
   // Período por extenso (retroativo): "Período: julho/2025 a abril/2026".
