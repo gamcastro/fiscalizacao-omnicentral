@@ -1153,9 +1153,15 @@ function interpretarTextoNf_(texto) {
   const emissao = t.match(/(\d{2})\/(\d{2})\/(\d{4}),?\s+\d{2}:\d{2}/);
   const total = pega(new RegExp('Valor\\s+Total\\s*:?\\s*' + dinheiro, 'i')) || pega(new RegExp('Valor\\s+Servi[cç]o\\s*:?\\s*' + dinheiro, 'i'));
   const liquido = pega(new RegExp('Valor\\s+L[ií]quido\\s*:?\\s*' + dinheiro, 'i'));
-  const periodo = t.match(/Per[ií]odo\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|até|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  // "Período: 01/05/2026 a 31/05/2026" ou "Período de 01/06/2026 a 30/06/2026".
+  const periodo = t.match(/Per[ií]odo\s*:?\s*(?:de\s+)?(\d{2})\/(\d{2})\/(\d{4})\s*(?:a|até|-)\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  // Período por extenso (retroativo): "Período: julho/2025 a abril/2026".
+  const extenso = t.match(/Per[ií]odo\s*:?\s*(?:de\s+)?([A-Za-zçÇ]+\/\d{4})\s*(?:a|até|-)\s*([A-Za-zçÇ]+\/\d{4})/i);
   return {
     texto: t,
+    retroativo: /retroativ/i.test(t),
+    periodoTexto: periodo ? periodo[1] + '/' + periodo[2] + '/' + periodo[3] + ' a ' + periodo[4] + '/' + periodo[5] + '/' + periodo[6]
+      : extenso ? extenso[1].toLowerCase() + ' a ' + extenso[2].toLowerCase() : '',
     numero: numero ? String(Number(numero)) : '',
     dataEmissao: emissao ? emissao[3] + '-' + emissao[2] + '-' + emissao[1] : '',
     valorTotal: total ? reaisDoPdf_(total) : null,
@@ -1186,7 +1192,17 @@ function interpretarTextoOb_(texto) {
   const valor = (t.match(/VALOR\s*:\s*(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/i) || [])[1];
   const favorecido = ((t.match(/FAVORECIDO\s*:\s*([\d.\/\-]{14,20})/i) || [])[1] || '').replace(/\D/g, '');
   const nes = (t.match(/\d{4}NE\d{6}/g) || []).filter(function (v, i, a) { return a.indexOf(v) === i; });
-  const nf = (t.match(/\bNF\s*(?:N[º°o]\.?\s*)?(\d{1,15})\b/i) || [])[1] || '';
+  // NF(s) citadas na observação: "NF 569" ou "NFS 619 E 620".
+  const mNfs = t.match(/\bNFS?(?:-?E)?\s*(?:N[º°o]S?\.?\s*)?(\d{1,15}(?:\s*(?:,|\bE\b)\s*\d{1,15})*)/i);
+  const nfs = mNfs ? mNfs[1].split(/\s*(?:,|\bE\b)\s*/i).map(function (n) { return String(Number(n)); }) : [];
+  const nf = nfs.length === 1 ? nfs[0] : '';
+  // Valor de cada NE nos eventos: "01 401003 2026NE000184400 33904019 4.468,55".
+  const valoresNe = {};
+  const reEvento = /(\d{4}NE\d{6})\d*(?:\s+\d{9})?\s+\d{8}\s+(\d{1,3}(?:\.\d{3})*,\d{2})(?!\d)/g;
+  let ev;
+  while ((ev = reEvento.exec(t)) !== null) {
+    if (!(ev[1] in valoresNe)) valoresNe[ev[1]] = reaisDoPdf_(ev[2]);
+  }
   const mes = t.match(/M[EÊ]S\s+DE\s+([A-ZÇ]+)\s+DE\s+(\d{4})/i);
   let competencia = '';
   if (mes) {
@@ -1196,7 +1212,7 @@ function interpretarTextoOb_(texto) {
   }
   return {
     texto: t, numero: numero, data: data, valor: valor ? reaisDoPdf_(valor) : null,
-    favorecido: favorecido, nes: nes, nf: nf ? String(Number(nf)) : '', competencia: competencia
+    favorecido: favorecido, nes: nes, nf: nf, nfs: nfs, valoresNe: valoresNe, competencia: competencia
   };
 }
 
@@ -1219,12 +1235,22 @@ function montarSugestaoPagamento_(nf, ob, ctx) {
     const d = String(ctx.cnpj || '').replace(/\D/g, '');
     if (d && ob.favorecido && ob.favorecido !== d) avisos.push('O favorecido da OB ' + ob.numero + ' não é a contratada.');
     if (!ob.data) avisos.push('Não encontrei a data da OB: preencha a data do pagamento à mão.');
-    if (ob.nes.length > 1) avisos.push('A OB cita mais de uma NE (' + ob.nes.join(', ') + '): foi sugerida a primeira.');
+    if (ob.nes.length > 1) {
+      avisos.push('A OB usa ' + ob.nes.length + ' NEs: ' + ob.nes.map(function (n) {
+        return n + (n in (ob.valoresNe || {}) ? ' (' + formatarReais_(ob.valoresNe[n]) + ' líquido)' : '');
+      }).join(', ') + '. Salve um pagamento para cada NE, com a parte (bruta) de cada uma, e confira a NE sugerida.');
+    }
+    if ((ob.nfs || []).length > 1) {
+      avisos.push('Esta OB paga as NFs ' + juntarComE_(ob.nfs) + ': o valor dela (' + formatarReais_(ob.valor) +
+        ') é a soma dos líquidos. Importe cada NF com a OB para lançar um pagamento por NF.');
+    }
     if (!ob.nes.length) avisos.push('Não encontrei a NE na OB: escolha a nota de empenho à mão.');
   }
   if (nf && ob) {
-    if (ob.nf && nf.numero && ob.nf !== nf.numero) avisos.push('A OB cita a NF ' + ob.nf + ', mas a NF escolhida é a ' + nf.numero + '. Confira se são do mesmo pagamento.');
-    if (ob.valor !== null && nf.valorLiquido !== null && Math.abs(ob.valor - nf.valorLiquido) > tolerancia) {
+    if ((ob.nfs || []).length && nf.numero && ob.nfs.indexOf(nf.numero) < 0) {
+      avisos.push('A OB cita a(s) NF(s) ' + juntarComE_(ob.nfs) + ', mas a NF escolhida é a ' + nf.numero + '. Confira se são do mesmo pagamento.');
+    }
+    if ((ob.nfs || []).length <= 1 && ob.valor !== null && nf.valorLiquido !== null && Math.abs(ob.valor - nf.valorLiquido) > tolerancia) {
       avisos.push('O valor da OB (' + formatarReais_(ob.valor) + ') difere do valor líquido da NF (' + formatarReais_(nf.valorLiquido) +
         ') em ' + formatarReais_(arred2_(ob.valor - nf.valorLiquido)) + '.');
     }
@@ -1234,9 +1260,17 @@ function montarSugestaoPagamento_(nf, ob, ctx) {
   }
 
   const numeroNF = (nf && nf.numero) || (ob && ob.nf) || '';
-  const existente = numeroNF ? (ctx.pagamentos || []).find(function (p) {
+  // Mesma NF já lançada: só o pagamento "A pagar" é aberto para edição (a OB chegou depois).
+  // Se já está "Pago" (ex.: retroativo dividido entre duas NEs), o formulário cria outro e só avisa.
+  const mesmaNf = numeroNF ? (ctx.pagamentos || []).filter(function (p) {
     return p.ativo && String(Number(p.numeroNF.replace(/\D/g, '') || NaN)) === numeroNF;
-  }) : null;
+  }) : [];
+  const existente = mesmaNf.find(function (p) { return p.situacao === 'A_PAGAR'; }) || null;
+  if (!existente && mesmaNf.length) {
+    avisos.push('A NF ' + numeroNF + ' já tem pagamento lançado (' + mesmaNf.map(function (p) {
+      return p.id + ', NE ' + p.empenhoId + ', ' + formatarReais_(p.valorNF);
+    }).join('; ') + '). Este formulário cria um novo: use só se for a parte de outra NE, e ajuste o valor para essa parte.');
+  }
 
   const s = existente ? {
     id: existente.id, competencia: existente.competencia, empenhoId: existente.empenhoId, tipo: existente.tipo,
@@ -1253,6 +1287,11 @@ function montarSugestaoPagamento_(nf, ob, ctx) {
     }
   }
   if (nf) {
+    if (nf.retroativo) {
+      s.tipo = 'RETROATIVO';
+      avisos.push('NF de retroativo' + (nf.periodoTexto ? ' (' + nf.periodoTexto + ')' : '') + ': a competência sugerida é a do mês do pagamento. ' +
+        'Se o retroativo foi pago por mais de uma NE, salve um pagamento para cada NE, com o mesmo número de NF e a parte de cada uma.');
+    }
     if (nf.competencia) s.competencia = nf.competencia;
     if (nf.numero) s.numeroNF = nf.numero;
     if (nf.dataEmissao) s.dataNF = nf.dataEmissao;
@@ -1262,6 +1301,17 @@ function montarSugestaoPagamento_(nf, ob, ctx) {
     if (!s.competencia && ob.competencia) s.competencia = ob.competencia;
     if (!s.numeroNF && ob.nf) s.numeroNF = ob.nf;
     if (ob.nes.length) s.empenhoId = ob.nes[0];
+    // NF já lançada em parte numa NE: sugere a outra NE da OB e o valor que falta.
+    if (!existente && mesmaNf.length && s.valorNF !== null) {
+      const usadas = mesmaNf.map(function (p) { return p.empenhoId; });
+      const outra = ob.nes.filter(function (n) { return usadas.indexOf(n) < 0; })[0];
+      const falta = arred2_(s.valorNF - somaCampo_(mesmaNf, 'valorNF'));
+      if (outra && falta > 0) {
+        s.empenhoId = outra;
+        s.valorNF = falta;
+        avisos.push('Sugerida a NE ' + outra + ' com o valor que falta da NF ' + numeroNF + ': ' + formatarReais_(falta) + '.');
+      }
+    }
     s.situacao = 'PAGO';
     s.valorPago = s.valorNF;
     if (ob.data) s.dataPagamento = ob.data;
@@ -1276,7 +1326,7 @@ function montarSugestaoPagamento_(nf, ob, ctx) {
     else if (!ne.ativo) avisos.push('A NE ' + s.empenhoId + ' da OB está desativada.');
   }
   const partesObs = [];
-  if (nf && nf.numero) partesObs.push('NF ' + nf.numero);
+  if (nf && nf.numero) partesObs.push('NF ' + nf.numero + (nf.retroativo && nf.periodoTexto ? ' (retroativo ' + nf.periodoTexto + ')' : ''));
   if (ob && ob.numero) partesObs.push('OB ' + ob.numero + (ob.valor !== null ? ' (líquido ' + formatarReais_(ob.valor) + ')' : ''));
   if (partesObs.length && (!s.obs || !existente)) s.obs = 'Importado: ' + partesObs.join(' · ') + '.';
   else if (partesObs.length && s.obs.indexOf(partesObs[partesObs.length - 1]) < 0) s.obs = (s.obs + ' Importado: ' + partesObs.join(' · ') + '.').slice(0, 500);
