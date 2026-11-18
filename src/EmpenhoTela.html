@@ -46,6 +46,24 @@
       <div class="acoes">
         <button type="button" id="emp-ne-nova" class="botao primario">Nova NE</button>
         <button type="button" id="emp-mov-novo" class="botao">Novo reforço ou anulação</button>
+        <button type="button" id="emp-imp-botao" class="botao">Importar NE do SIAFI (PDF)</button>
+        <input type="file" id="emp-imp-arquivo" accept="application/pdf,.pdf" hidden>
+      </div>
+    </div>
+
+    <div id="emp-imp-form" class="bloco-form" hidden>
+      <h3 id="emp-imp-titulo">Importar NE do SIAFI</h3>
+      <div id="emp-imp-resumo"></div>
+      <table class="tabela" id="emp-imp-tabela">
+        <thead><tr><th>Registro</th><th>Data</th><th class="numero">Valor</th><th>Situação</th><th>ID SEI (opcional)</th></tr></thead>
+        <tbody id="emp-imp-linhas"></tbody>
+      </table>
+      <div id="emp-imp-avisos" class="avisos" hidden></div>
+      <details class="mont-texto"><summary>ver texto lido do PDF</summary><pre id="emp-imp-texto"></pre></details>
+      <p class="dica">O PDF não é guardado. Só os registros marcados como "novo" são gravados, com registro no Log; o que já está cadastrado não é alterado.</p>
+      <div class="acoes">
+        <button type="button" id="emp-imp-confirmar" class="botao primario">Confirmar importação</button>
+        <button type="button" class="botao" data-fechar="emp-imp-form">Cancelar</button>
       </div>
     </div>
     <table class="tabela">
@@ -191,6 +209,7 @@
     let dados = null;
     let despacho = null;
     const edicao = { ne: '', mov: '', pag: '', prev: '' };
+    let importacao = null;
 
     function reais(n) {
       return n === null || n === undefined ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -429,8 +448,9 @@
     /* ---------- Formulários ---------- */
 
     function fecharFormularios() {
-      ['emp-ne-form', 'emp-mov-form', 'emp-pag-form', 'emp-prev-form'].forEach(function (id) { el(id).hidden = true; });
+      ['emp-ne-form', 'emp-mov-form', 'emp-pag-form', 'emp-prev-form', 'emp-imp-form'].forEach(function (id) { el(id).hidden = true; });
       edicao.ne = edicao.mov = edicao.pag = edicao.prev = '';
+      importacao = null;
     }
 
     function abrirFormulario(id) {
@@ -559,6 +579,89 @@
       }));
     });
     ['emp-pag-situacao', 'emp-pag-comp'].forEach(function (id) { el(id).addEventListener('change', atualizarFormPagamento); });
+
+    /* ---------- Importação da NE pelo PDF do SIAFI ---------- */
+
+    function lerArquivoBase64(arquivo) {
+      return new Promise(function (resolve, reject) {
+        const leitor = new FileReader();
+        leitor.onload = function () { resolve(String(leitor.result).replace(/^data:[^,]*,/, '')); };
+        leitor.onerror = function () { reject(new Error('Não foi possível ler "' + arquivo.name + '".')); };
+        leitor.readAsDataURL(arquivo);
+      });
+    }
+
+    const STATUS_IMP = {
+      NOVO: '<span class="etiqueta ok">novo</span>',
+      JA_CADASTRADO: '<span class="etiqueta off">já cadastrado</span>',
+      DIVERGENTE: '<span class="etiqueta nok">diferente do cadastrado</span>'
+    };
+
+    function mostrarImportacao(r) {
+      abrirFormulario('emp-imp-form');
+      importacao = r.ok ? r : null;
+      el('emp-imp-texto').textContent = r.texto || '';
+      el('emp-imp-titulo').textContent = 'Importar NE do SIAFI – ' + r.arquivo;
+      if (!r.ok) {
+        el('emp-imp-resumo').innerHTML = '<p class="texto-alerta">' + esc(r.erro) + '</p>';
+        el('emp-imp-tabela').hidden = true;
+        el('emp-imp-avisos').hidden = true;
+        el('emp-imp-confirmar').hidden = true;
+        return;
+      }
+      el('emp-imp-tabela').hidden = false;
+      el('emp-imp-confirmar').hidden = false;
+      el('emp-imp-resumo').innerHTML = '<p><strong>' + esc(r.id) + '</strong> · emissão ' + esc(dataBr(r.dataEmissao)) +
+        ' · valor atual no SIAFI ' + esc(reais(r.valorTotal)) + '<br><span class="dica">' +
+        (r.situacao === 'NOVA' ? 'NE ainda não cadastrada: será incluída com o valor inicial (soma das inclusões) e os movimentos abaixo.'
+          : 'NE já cadastrada: só os reforços e anulações novos serão incluídos.') + '</span></p>';
+      const campoSei = function (ref) { return '<input type="text" inputmode="numeric" class="emp-imp-sei" data-ref="' + ref + '">'; };
+      let linhas = '';
+      if (r.situacao === 'NOVA') {
+        linhas += '<tr><td>Nota de empenho (valor inicial)</td><td>' + esc(dataBr(r.dataEmissao)) + '</td>' +
+          '<td class="numero">' + esc(reais(r.valorInicial)) + '</td><td>' + STATUS_IMP.NOVO + '</td><td>' + campoSei('NE') + '</td></tr>';
+      }
+      linhas += r.movimentos.map(function (m, i) {
+        return '<tr><td>↳ ' + esc(ROTULOS[m.tipo]) + '</td><td>' + esc(dataBr(m.data)) + '</td>' +
+          '<td class="numero">' + (m.tipo === 'ANULACAO' ? '− ' : '+ ') + esc(reais(m.valor)) + '</td>' +
+          '<td>' + STATUS_IMP[m.status] + '</td><td>' + (m.status === 'NOVO' ? campoSei(i) : '') + '</td></tr>';
+      }).join('');
+      if (!linhas) linhas = '<tr><td colspan="5" class="vazio">Nenhum reforço ou anulação no PDF.</td></tr>';
+      el('emp-imp-linhas').innerHTML = linhas;
+      el('emp-imp-avisos').hidden = !r.avisos.length;
+      el('emp-imp-avisos').innerHTML = r.avisos.map(function (a) { return '<p>⚠ ' + esc(a) + '</p>'; }).join('');
+      el('emp-imp-confirmar').disabled = !r.novos;
+      el('emp-imp-confirmar').textContent = r.novos ? 'Confirmar importação (' + r.novos + (r.novos === 1 ? ' registro)' : ' registros)') : 'Nada novo para importar';
+    }
+
+    el('emp-imp-botao').addEventListener('click', function () { el('emp-imp-arquivo').click(); });
+    el('emp-imp-arquivo').addEventListener('change', function () {
+      const arquivo = this.files && this.files[0];
+      this.value = '';
+      if (!arquivo) return;
+      limparMensagem();
+      ocupado(true);
+      lerArquivoBase64(arquivo)
+        .then(function (b64) { return chamar('lerPdfNe', arquivo.name, b64); })
+        .then(mostrarImportacao)
+        .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); window.scrollTo(0, 0); })
+        .then(function () {
+          ocupado(false);
+          if (importacao) el('emp-imp-confirmar').disabled = !importacao.novos;
+        });
+    });
+    el('emp-imp-confirmar').addEventListener('click', function () {
+      if (!importacao) return;
+      const sei = {};
+      document.querySelectorAll('#emp-imp-linhas .emp-imp-sei').forEach(function (c) { sei[c.dataset.ref] = c.value; });
+      gravar(chamar('importarNe', {
+        id: importacao.id, dataEmissao: importacao.dataEmissao, valorInicial: importacao.valorInicial,
+        valorTotal: importacao.valorTotal, arquivo: importacao.arquivo, idSei: sei.NE || '',
+        movimentos: importacao.movimentos.map(function (m, i) {
+          return { tipo: m.tipo, data: m.data, valor: m.valor, idSei: sei[i] || '' };
+        })
+      }));
+    });
 
     el('emp-ne-nova').addEventListener('click', function () { abrirNe(null); });
     el('emp-mov-novo').addEventListener('click', function () { abrirMovimento(null); });

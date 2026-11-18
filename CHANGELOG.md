@@ -19,6 +19,7 @@ Entrega única com a v0.10.0 (montagem dos relatórios e guia rápido), que não
 - Card "Empenho" no painel (só para os três perfis), com saldo, indicação e prazo.
 - Lembrete por e-mail: aviso de prazo do empenho ao entrar na janela de `EMPENHO_AVISO_DIAS`, 3 dias úteis antes e no dia da data-limite. O bloco com valores vai só para destinatários ativos com acesso ao módulo. `testarLembrete()` inclui o bloco para quem executa, se tiver acesso.
 - Avisos (sem bloquear) para pagamento maior que o saldo da NE, anulação que deixa a NE negativa e pagamento mensal repetido.
+- Importar NE do SIAFI (PDF "Impressão Completa"): lê número, data de emissão e operações dos itens; valor inicial = soma das inclusões, e cada reforço ou anulação vira um movimento com a sua data. Mostra uma prévia (novo / já cadastrado / diferente do cadastrado), pede o ID SEI à mão e só grava após a confirmação. Confere o favorecido pelo CNPJ da contratada. Na reimportação de uma versão nova da NE, só entra o que ainda não está cadastrado; divergências só geram aviso. O PDF não é guardado.
 
 ### Observação
 - Nenhuma tela, texto ou aba da fiscalização técnica foi alterada, além do card do painel e do item de menu. Sem permissão nova do Google.

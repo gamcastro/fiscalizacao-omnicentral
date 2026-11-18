@@ -828,6 +828,261 @@ function salvarMovimento(dados) {
   });
 }
 
+/* ---------- Importação da NE pelo PDF do SIAFI (decisões de 18/11/2026) ---------- */
+
+/**
+ * Lê o PDF da NE (impressão completa do SIAFI) enviado pelo navegador e devolve a PRÉVIA da
+ * importação. Nada é gravado e o PDF não é guardado (o texto sai de um Google Docs temporário).
+ * Retorno: { ok, erro?, arquivo, id, exercicio, dataEmissao, valorInicial, valorTotal,
+ *            situacao: NOVA|EXISTENTE, movimentos: [{tipo, data, valor, status}], novos, avisos, texto }
+ */
+function lerPdfNe(nome, base64) {
+  requirePerfil_(perfisEmpenho_());
+  exigirAbasEmpenho_();
+  const arquivo = String(nome || 'nota_de_empenho.pdf').slice(0, 200);
+  let bytes;
+  try {
+    bytes = Utilities.base64Decode(String(base64 || ''));
+  } catch (e) {
+    throw new Error('Não foi possível ler o arquivo "' + arquivo + '".');
+  }
+  if (!bytes.length) throw new Error('O arquivo "' + arquivo + '" está vazio.');
+  if (bytes.length > 20 * 1024 * 1024) throw new Error('O arquivo "' + arquivo + '" passa de 20 MB.');
+  if (bytes[0] !== 37 || bytes[1] !== 80 || bytes[2] !== 68 || bytes[3] !== 70) {
+    throw new Error('O arquivo "' + arquivo + '" não é um PDF.');
+  }
+  const texto = textoDoBlob_(Utilities.newBlob(bytes, MimeType.PDF, arquivo), arquivo);
+  let lido;
+  try {
+    lido = interpretarTextoNe_(texto, arquivo, String(lerConfig_().CNPJ || ''));
+  } catch (e) {
+    return { ok: false, erro: e.message, arquivo: arquivo, texto: texto };
+  }
+  const ne = lerEmpenhos_().find(function (e) { return e.id === lido.id; });
+  if (ne && !ne.ativo) {
+    return { ok: false, erro: 'A NE ' + lido.id + ' está cadastrada, mas desativada. Reative-a na lista antes de importar.', arquivo: arquivo, texto: texto };
+  }
+  const comparacao = compararNeImportada_(lido, ne || null,
+    lerMovimentos_().filter(function (m) { return m.ativo && m.empenhoId === lido.id; }));
+  return Object.assign({ ok: true, arquivo: arquivo, texto: texto }, lido, {
+    situacao: comparacao.situacao,
+    movimentos: comparacao.movimentos,
+    novos: (comparacao.situacao === 'NOVA' ? 1 : 0) +
+      comparacao.movimentos.filter(function (m) { return m.status === 'NOVO'; }).length,
+    avisos: lido.avisos.concat(comparacao.avisos)
+  });
+}
+
+/**
+ * Grava a importação confirmada na prévia: cria a NE (se nova) e só os reforços/anulações que
+ * ainda não existem. Divergências só geram aviso (nada já cadastrado é alterado).
+ * dados: { id, dataEmissao, valorInicial, valorTotal, idSei, arquivo, movimentos: [{tipo, data, valor, idSei}] }
+ */
+function importarNe(dados) {
+  const usuario = requirePerfil_(perfisEmpenho_());
+  exigirAbasEmpenho_();
+  dados = dados || {};
+  const id = String(dados.id || '').trim().toUpperCase();
+  if (!/^\d{4}NE\d{6}$/.test(id)) throw new Error('Número da NE inválido. Leia o PDF de novo.');
+  const exercicio = id.slice(0, 4);
+  const dataEmissao = lerDataEmpenho_(dados.dataEmissao, 'Data de emissão', true);
+  if (dataEmissao.slice(0, 4) !== exercicio) throw new Error('A data de emissão deve ser de ' + exercicio + ', o ano do número da NE.');
+  const lido = {
+    id: id,
+    dataEmissao: dataEmissao,
+    valorInicial: lerValorReais_(dados.valorInicial, 'Valor inicial', true, false),
+    movimentos: (dados.movimentos || []).map(function (m) {
+      const tipo = String(m.tipo || '').trim();
+      if (!TIPOS_MOVIMENTO[tipo]) throw new Error('Tipo de movimento inválido na importação.');
+      return {
+        tipo: tipo,
+        data: lerDataEmpenho_(m.data, 'Data do ' + TIPOS_MOVIMENTO[tipo].toLowerCase(), true),
+        valor: lerValorReais_(m.valor, 'Valor do ' + TIPOS_MOVIMENTO[tipo].toLowerCase(), true, false),
+        idSei: lerIdSeiEmpenho_(m.idSei)
+      };
+    })
+  };
+  const arquivo = textoLivre_(dados.arquivo, 200);
+  const obs = textoLivre_('Importado do PDF do SIAFI' + (arquivo ? ' (' + arquivo + ')' : '') + '.', 500);
+  const idSeiNe = lerIdSeiEmpenho_(dados.idSei);
+
+  return comLock_(function () {
+    const agora = new Date();
+    const carimbo = { ativo: true, criadoEm: agora, criadoPor: usuario.email, atualizadoEm: agora, atualizadoPor: usuario.email };
+    const ne = lerEmpenhos_().find(function (e) { return e.id === id; });
+    if (ne && !ne.ativo) throw new Error('A NE ' + id + ' está desativada. Reative-a antes de importar.');
+
+    let neCriada = false;
+    if (!ne) {
+      const registro = Object.assign({
+        id: id, exercicio: exercicio, dataEmissao: dataDeIso_(dataEmissao), valorInicial: lido.valorInicial,
+        idSei: idSeiNe, obs: obs
+      }, carimbo);
+      incluir_(ABAS.EMPENHOS, [registro]);
+      gravarLog_('CRIAR', ABAS.EMPENHOS, id, null, registro);
+      neCriada = true;
+    }
+
+    // Compara de novo dentro do lock: só entra o que ainda não está cadastrado.
+    const linhasMov = listar_(ABAS.EMP_MOVIMENTOS);
+    const doSistema = lerMovimentos_().filter(function (m) { return m.ativo && m.empenhoId === id; });
+    const comparacao = compararNeImportada_(lido, ne || null, doSistema);
+    let maior = 0;
+    linhasMov.forEach(function (l) {
+      const m = String(l.id).trim().match(/^MOV-(\d+)$/);
+      if (m) maior = Math.max(maior, Number(m[1]));
+    });
+    let incluidos = 0;
+    comparacao.movimentos.forEach(function (m, i) {
+      if (m.status !== 'NOVO') return;
+      maior++;
+      const registro = Object.assign({
+        id: 'MOV-' + ('000' + maior).slice(-4), empenhoId: id, tipo: m.tipo, data: dataDeIso_(m.data),
+        valor: m.valor, idSei: lido.movimentos[i].idSei, obs: obs
+      }, carimbo);
+      incluir_(ABAS.EMP_MOVIMENTOS, [registro]);
+      gravarLog_('CRIAR', ABAS.EMP_MOVIMENTOS, registro.id, null, registro);
+      incluidos++;
+    });
+
+    const partes = [];
+    if (neCriada) partes.push('NE ' + id + ' incluída');
+    if (incluidos) partes.push(incluidos + (incluidos === 1 ? ' movimento incluído' : ' movimentos incluídos') + (neCriada ? '' : ' na NE ' + id));
+    const mensagem = partes.length ? partes.join(' com ') + '.' : 'Nada novo para incluir na NE ' + id + ': tudo o que está no PDF já estava cadastrado.';
+    const r = resultadoEmpenho_(mensagem, exercicio, [id]);
+    r.avisos = comparacao.avisos.concat(r.avisos);
+    return r;
+  });
+}
+
+/** Valor em reais escrito no PDF ("109.094,95"). */
+function reaisDoPdf_(s) {
+  return arred2_(Math.abs(Number(String(s).replace(/\./g, '').replace(',', '.'))));
+}
+
+/**
+ * Interpreta o texto da NE do SIAFI (sem dependência do Apps Script; testável).
+ * Valor inicial = soma das operações "Inclusão"; cada "Reforço"/"Anulação" vira um movimento
+ * (somado por dia). Lança erro com mensagem clara se o texto não for de uma NE da contratada.
+ */
+function interpretarTextoNe_(texto, nomeArquivo, cnpj) {
+  const t = String(texto || '').replace(/ /g, ' ');
+  if (!/nota\s+de\s+empenho/i.test(t)) throw new Error('Este PDF não parece ser uma nota de empenho do SIAFI.');
+  const avisos = [];
+
+  const digitosCnpj = String(cnpj || '').replace(/\D/g, '');
+  if (digitosCnpj && t.replace(/[.\/\-\s]/g, '').indexOf(digitosCnpj) < 0) {
+    throw new Error('O favorecido desta NE não é a contratada (CNPJ ' + cnpj + '). Confira se o PDF é da NE do Contrato 20/2025.');
+  }
+
+  // Número: "2026 NE 334" no corpo; "…2026NE000334…" no nome do arquivo baixado.
+  const mTexto = t.match(/\b(20\d{2})\s+NE\s+(\d{1,6})\b/);
+  const mNome = String(nomeArquivo || '').toUpperCase().match(/(20\d{2})NE(\d{6})/);
+  const idTexto = mTexto ? mTexto[1] + 'NE' + ('000000' + mTexto[2]).slice(-6) : '';
+  const idNome = mNome ? mNome[1] + 'NE' + mNome[2] : '';
+  if (idTexto && idNome && idTexto !== idNome) {
+    throw new Error('O número da NE no PDF (' + idTexto + ') é diferente do que está no nome do arquivo (' + idNome + ').');
+  }
+  const id = idTexto || idNome;
+  if (!id) throw new Error('Não encontrei o número da NE (ano, "NE" e número) no PDF.');
+
+  const dinheiro = '-?\\d{1,3}(?:\\.\\d{3})*,\\d{2}(?!\\d)';
+  // Data de emissão, tipo da NE e valor atual: "20/05/2026 Estimativo 0016668-09.2024 - 109.094,95".
+  const mEmissao = t.match(new RegExp('(\\d{2})/(\\d{2})/(\\d{4})\\s+(Estimativo|Ordin[aá]rio|Global)\\b([\\s\\S]{0,300}?)(' + dinheiro + ')', 'i'));
+  if (!mEmissao) throw new Error('Não encontrei a data de emissão e o valor da NE no PDF.');
+  const dataEmissao = mEmissao[3] + '-' + mEmissao[2] + '-' + mEmissao[1];
+  const valorTotal = reaisDoPdf_(mEmissao[6]);
+  if (dataEmissao.slice(0, 4) !== id.slice(0, 4)) {
+    throw new Error('A data de emissão (' + mEmissao[1] + '/' + mEmissao[2] + '/' + mEmissao[3] + ') não é do ano da NE ' + id + '.');
+  }
+
+  // Operações dos itens: "21/05/2026 Inclusão 1,00000 3.147,4200 3.147,42".
+  const reOp = new RegExp('(\\d{2})/(\\d{2})/(\\d{4})\\s+(Inclus[aã]o|Refor[cç]o|Anula[cç][aã]o)(?:\\s+(?:Parcial|Total))?\\s+' +
+    '-?[\\d.]+,\\d+\\s+-?[\\d.]+,\\d+\\s+(' + dinheiro + ')', 'gi');
+  let valorInicial = 0;
+  const porDia = {};
+  const ordem = [];
+  let m;
+  let operacoes = 0;
+  while ((m = reOp.exec(t)) !== null) {
+    operacoes++;
+    const data = m[3] + '-' + m[2] + '-' + m[1];
+    const nomeOp = m[4].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const valor = reaisDoPdf_(m[5]);
+    if (nomeOp === 'inclusao') {
+      valorInicial = arred2_(valorInicial + valor);
+      continue;
+    }
+    const tipo = nomeOp === 'reforco' ? 'REFORCO' : 'ANULACAO';
+    const chave = tipo + '|' + data;
+    if (!porDia[chave]) { porDia[chave] = { tipo: tipo, data: data, valor: 0 }; ordem.push(chave); }
+    porDia[chave].valor = arred2_(porDia[chave].valor + valor);
+  }
+  if (!operacoes) throw new Error('Não encontrei as operações dos itens (Inclusão, Reforço, Anulação) no PDF. Use a "Impressão Completa" da NE.');
+  if (!valorInicial) throw new Error('Não encontrei nenhuma operação de Inclusão no PDF.');
+
+  const movimentos = ordem.map(function (c) { return porDia[c]; })
+    .sort(function (a, b) { return a.data < b.data ? -1 : a.data > b.data ? 1 : 0; });
+  const liquido = arred2_(movimentos.reduce(function (s, x) {
+    return s + (x.tipo === 'REFORCO' ? x.valor : -x.valor);
+  }, valorInicial));
+  if (Math.abs(liquido - valorTotal) >= 0.005) {
+    avisos.push('A soma das operações lidas (' + formatarReais_(liquido) + ') não bate com o valor da NE no PDF (' +
+      formatarReais_(valorTotal) + '). Pode haver operação que o sistema não reconheceu: confira o PDF antes de confirmar.');
+  }
+  return { id: id, exercicio: id.slice(0, 4), dataEmissao: dataEmissao, valorInicial: valorInicial, valorTotal: valorTotal,
+    movimentos: movimentos, avisos: avisos };
+}
+
+/**
+ * Compara o que foi lido do PDF com o que já está cadastrado (sem dependência do Apps Script).
+ * Movimentos comparados por tipo e dia (somados). Divergência só gera aviso.
+ */
+function compararNeImportada_(lido, ne, movimentosAtivos) {
+  const avisos = [];
+  const doSistema = {};
+  (movimentosAtivos || []).forEach(function (m) {
+    const chave = m.tipo + '|' + m.data;
+    doSistema[chave] = arred2_((doSistema[chave] || 0) + m.valor);
+  });
+  if (ne) {
+    if (Math.abs(ne.valorInicial - lido.valorInicial) >= 0.005) {
+      avisos.push('O valor inicial cadastrado da NE ' + ne.id + ' (' + formatarReais_(ne.valorInicial) + ') é diferente da soma das inclusões no PDF (' +
+        formatarReais_(lido.valorInicial) + '). Nada foi alterado; se for o caso, corrija a NE na lista.');
+    }
+    if (ne.dataEmissao !== lido.dataEmissao) {
+      avisos.push('A data de emissão cadastrada da NE ' + ne.id + ' (' + (ne.dataEmissao ? dataBr_(ne.dataEmissao) : 'vazia') + ') é diferente da do PDF (' + dataBr_(lido.dataEmissao) + ').');
+    }
+  }
+  const usados = {};
+  const movimentos = (lido.movimentos || []).map(function (x) {
+    const chave = x.tipo + '|' + x.data;
+    usados[chave] = true;
+    const sistema = doSistema[chave] || 0;
+    let status = 'NOVO';
+    if (sistema && Math.abs(sistema - x.valor) < 0.005) status = 'JA_CADASTRADO';
+    else if (sistema) {
+      status = 'DIVERGENTE';
+      const g = generoMovimento_(x.tipo);
+      avisos.push(g.artigo + ' ' + TIPOS_MOVIMENTO[x.tipo].toLowerCase() + ' de ' + dataBr_(x.data) + ' está cadastrad' + g.final + ' com ' + formatarReais_(sistema) +
+        ', mas no PDF é ' + formatarReais_(x.valor) + '. Não será incluíd' + g.final + '; corrija na lista se for o caso.');
+    }
+    return { tipo: x.tipo, data: x.data, valor: x.valor, status: status };
+  });
+  Object.keys(doSistema).forEach(function (chave) {
+    if (usados[chave]) return;
+    const p = chave.split('|');
+    const g = generoMovimento_(p[0]);
+    avisos.push(g.artigo + ' ' + TIPOS_MOVIMENTO[p[0]].toLowerCase() + ' de ' + dataBr_(p[1]) + ' (' + formatarReais_(doSistema[chave]) +
+      ') está cadastrad' + g.final + ', mas não aparece no PDF.');
+  });
+  return { situacao: ne ? 'EXISTENTE' : 'NOVA', movimentos: movimentos, avisos: avisos };
+}
+
+function generoMovimento_(tipo) {
+  return tipo === 'ANULACAO' ? { artigo: 'A', final: 'a' } : { artigo: 'O', final: 'o' };
+}
+
 /** dados: { id (vazio = novo), competencia, empenhoId, tipo, numeroNF, dataNF, valorNF, situacao, valorPago, dataPagamento, idSei, obs } */
 function salvarPagamento(dados) {
   const usuario = requirePerfil_(perfisEmpenho_());

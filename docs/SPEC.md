@@ -378,6 +378,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
    - prioridade: a decisão de reforço ou anulação de 2026 depende deste módulo.
    - decisões de 17/11/2026: competência em qualquer status (inclusive rascunho) conta como medida; vigência sem meses medidos usa a vigência anterior, com aviso; o bloco do empenho no e-mail vai só para destinatários com acesso ao módulo; o aviso de prazo sai ao entrar na janela, 3 dias úteis antes e no dia; as chaves `EMPENHO_*` são editadas pelo superadmin dentro da tela do empenho (não nas Configurações); pagamento maior que o saldo da NE ou anulação que deixa a NE negativa só geram aviso;
    - implementada na v0.11.0 (entregue junto com a v0.10.0).
+   - acréscimo de 18/11/2026: importação da NE pelo PDF do SIAFI ("Impressão Completa"). O app lê número, data de emissão e operações dos itens; valor inicial = soma das "Inclusão" e cada "Reforço"/"Anulação" vira um movimento (somado por dia). Prévia antes de gravar, ID SEI informado à mão, favorecido conferido pelo CNPJ da `Config`, PDF não guardado. Na reimportação só entra o que é novo; divergência com o que já está cadastrado só gera aviso. Entra na mesma v0.11.0.
 
 Em cada fase: plano → aprovação → código → `clasp push` → roteiro de teste.
 
