@@ -44,7 +44,7 @@ const CABECALHOS = {
   Feriados: ['data', 'descricao'],
   Log: ['timestamp', 'email', 'acao', 'entidade', 'chave', 'antes', 'depois'],
   Empenhos: ['id', 'exercicio', 'dataEmissao', 'valorInicial', 'idSei', 'obs', 'ativo',
-    'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
+    'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor', 'linkPdf'],
   EmpenhoMovimentos: ['id', 'empenhoId', 'tipo', 'data', 'valor', 'idSei', 'obs', 'ativo',
     'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
   Pagamentos: ['id', 'competencia', 'empenhoId', 'tipo', 'numeroNF', 'dataNF', 'valorNF', 'situacao',

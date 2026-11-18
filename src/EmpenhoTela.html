@@ -60,7 +60,8 @@
       </table>
       <div id="emp-imp-avisos" class="avisos" hidden></div>
       <details class="mont-texto"><summary>ver texto lido do PDF</summary><pre id="emp-imp-texto"></pre></details>
-      <p class="dica">O PDF não é guardado. Só os registros marcados como "novo" são gravados, com registro no Log; o que já está cadastrado não é alterado.</p>
+      <label class="emp-imp-guardar"><input type="checkbox" id="emp-imp-guardar" checked> Guardar o PDF na pasta do Drive dos PDFs das NEs e ligar o link à NE</label>
+      <p class="dica">Só os registros marcados como "novo" são gravados, com registro no Log; o que já está cadastrado não é alterado. Sem a opção acima, o PDF não é guardado.</p>
       <div class="acoes">
         <button type="button" id="emp-imp-confirmar" class="botao primario">Confirmar importação</button>
         <button type="button" class="botao" data-fechar="emp-imp-form">Cancelar</button>
@@ -85,6 +86,7 @@
         <label>Valor inicial (R$)<input type="text" id="emp-ne-valor" inputmode="decimal" placeholder="0,00"></label>
         <label>ID SEI da NE (opcional)<input type="text" id="emp-ne-sei" inputmode="numeric"></label>
         <label class="largo">Observação<input type="text" id="emp-ne-obs"></label>
+        <label class="largo">Link do PDF da NE (opcional)<input type="url" id="emp-ne-link" placeholder="https://drive.google.com/…"></label>
       </div>
       <div class="acoes">
         <button type="submit" class="botao primario">Salvar NE</button>
@@ -274,6 +276,22 @@
       preencherSelects();
     }
 
+    /** Link "PDF" da NE (abre em nova aba), ou vazio. */
+    function linkPdfNe(e) {
+      return e && e.linkPdf
+        ? ' <a href="' + esc(e.linkPdf) + '" target="_blank" rel="noopener" title="Abrir o PDF da NE">(PDF)</a>' : '';
+    }
+
+    /** Card "Empenhado líquido": cada NE ativa do exercício com o link do PDF e o valor líquido. */
+    function listaNesCard() {
+      const nes = dados.calc.nes || [];
+      if (!nes.length) return 'Nenhuma NE ativa.';
+      return nes.map(function (n) {
+        const e = dados.empenhos.find(function (x) { return x.id === n.id; });
+        return esc(n.id) + linkPdfNe(e) + ' – ' + esc(reais(n.liquido));
+      }).join('<br>');
+    }
+
     function card(titulo, valor, detalhe, classe) {
       return '<div class="card-emp ' + (classe || '') + '"><div class="card-emp-titulo">' + esc(titulo) + '</div>' +
         '<div class="card-emp-valor">' + valor + '</div>' + (detalhe ? '<div class="dica">' + detalhe + '</div>' : '') + '</div>';
@@ -295,8 +313,7 @@
         detalheInd += '<br>A data-limite vale para o exercício ' + esc(dados.exercicioPadrao) + '.';
       }
       el('emp-cards').innerHTML = [
-        card('Empenhado líquido', esc(reais(t.empenhado)),
-          'Inicial ' + esc(reais(t.inicial)) + ' · reforços ' + esc(reais(t.reforcos)) + ' · anulações ' + esc(reais(t.anulacoes))),
+        card('Empenhado líquido', esc(reais(t.empenhado)), listaNesCard()),
         card('Pago', esc(reais(t.pago)), 'Soma dos pagamentos com situação "Pago".'),
         card('A pagar + comprometido', esc(reais(t.aPagar + t.comprometido)),
           'NF a pagar ' + esc(reais(t.aPagar)) + ' · medido sem pagamento ' + esc(reais(t.comprometido))),
@@ -361,7 +378,7 @@
       el('emp-ne-lista').innerHTML = dados.empenhos.length ? dados.empenhos.map(function (e) {
         const r = e.resumo || {};
         let html = '<tr class="' + (e.ativo ? '' : 'inativo') + '">' +
-          '<td><strong>' + esc(e.id) + '</strong>' + (e.ativo ? '' : ' <span class="etiqueta off">desativada</span>') + '</td>' +
+          '<td><strong>' + esc(e.id) + '</strong>' + linkPdfNe(e) + (e.ativo ? '' : ' <span class="etiqueta off">desativada</span>') + '</td>' +
           '<td>' + esc(dataBr(e.dataEmissao)) + '</td>' +
           '<td class="numero">' + esc(reais(e.valorInicial)) + '</td>' +
           '<td class="numero">' + (e.ativo ? esc(reais(r.liquido)) : '—') + '</td>' +
@@ -476,6 +493,7 @@
       el('emp-ne-valor').value = ne ? valorCampo(ne.valorInicial) : '';
       el('emp-ne-sei').value = ne ? ne.idSei : '';
       el('emp-ne-obs').value = ne ? ne.obs : '';
+      el('emp-ne-link').value = ne ? (ne.linkPdf || '') : '';
     }
 
     function abrirMovimento(m) {
@@ -591,7 +609,8 @@
       ev.preventDefault();
       gravar(chamar('salvarEmpenho', {
         idOriginal: edicao.ne, id: el('emp-ne-id').value, dataEmissao: el('emp-ne-data').value,
-        valorInicial: el('emp-ne-valor').value, idSei: el('emp-ne-sei').value, obs: el('emp-ne-obs').value
+        valorInicial: el('emp-ne-valor').value, idSei: el('emp-ne-sei').value, obs: el('emp-ne-obs').value,
+        linkPdf: el('emp-ne-link').value
       }));
     });
     el('emp-mov-form').addEventListener('submit', function (ev) {
@@ -669,9 +688,21 @@
       el('emp-imp-linhas').innerHTML = linhas;
       el('emp-imp-avisos').hidden = !r.avisos.length;
       el('emp-imp-avisos').innerHTML = r.avisos.map(function (a) { return '<p>⚠ ' + esc(a) + '</p>'; }).join('');
-      el('emp-imp-confirmar').disabled = !r.novos;
-      el('emp-imp-confirmar').textContent = r.novos ? 'Confirmar importação (' + r.novos + (r.novos === 1 ? ' registro)' : ' registros)') : 'Nada novo para importar';
+      el('emp-imp-guardar').checked = true;
+      atualizarBotaoImportacao();
     }
+
+    /** Sem registros novos, o botão ainda serve para guardar o PDF (ex.: NE já cadastrada sem link). */
+    function atualizarBotaoImportacao() {
+      if (!importacao) return;
+      const guardar = el('emp-imp-guardar').checked;
+      const n = importacao.novos;
+      el('emp-imp-confirmar').disabled = !n && !guardar;
+      el('emp-imp-confirmar').textContent = n
+        ? 'Confirmar importação (' + n + (n === 1 ? ' registro)' : ' registros)')
+        : guardar ? 'Guardar o PDF e ligar à NE' : 'Nada novo para importar';
+    }
+    el('emp-imp-guardar').addEventListener('change', atualizarBotaoImportacao);
 
     el('emp-imp-botao').addEventListener('click', function () { el('emp-imp-arquivo').click(); });
     el('emp-imp-arquivo').addEventListener('change', function () {
@@ -680,13 +711,14 @@
       if (!arquivo) return;
       limparMensagem();
       ocupado(true);
+      let base64 = '';
       lerArquivoBase64(arquivo)
-        .then(function (b64) { return chamar('lerPdfNe', arquivo.name, b64); })
-        .then(mostrarImportacao)
+        .then(function (b64) { base64 = b64; return chamar('lerPdfNe', arquivo.name, b64); })
+        .then(function (r) { mostrarImportacao(r); if (importacao) importacao.base64 = base64; })
         .catch(function (erro) { mostrarMensagem(erro.message, 'erro'); window.scrollTo(0, 0); })
         .then(function () {
           ocupado(false);
-          if (importacao) el('emp-imp-confirmar').disabled = !importacao.novos;
+          atualizarBotaoImportacao();
         });
     });
     el('emp-imp-confirmar').addEventListener('click', function () {
@@ -696,6 +728,7 @@
       gravar(chamar('importarNe', {
         id: importacao.id, dataEmissao: importacao.dataEmissao, valorInicial: importacao.valorInicial,
         valorTotal: importacao.valorTotal, arquivo: importacao.arquivo, idSei: sei.NE || '',
+        guardarPdf: el('emp-imp-guardar').checked, base64: el('emp-imp-guardar').checked ? importacao.base64 : '',
         movimentos: importacao.movimentos.map(function (m, i) {
           return { tipo: m.tipo, data: m.data, valor: m.valor, idSei: sei[i] || '' };
         })

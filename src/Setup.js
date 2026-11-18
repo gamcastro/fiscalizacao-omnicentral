@@ -58,7 +58,8 @@ const DADOS_INICIAIS = {
     { chave: 'EMPENHO_DATA_LIMITE', valor: '', descricao: 'Data-limite do setor de orçamento para pedir reforço ou anulação no exercício' },
     { chave: 'EMPENHO_AVISO_DIAS', valor: 15, descricao: 'Dias antes da data-limite em que o painel e o lembrete passam a avisar' },
     { chave: 'EMPENHO_TOLERANCIA_NF', valor: 1, descricao: 'Diferença em reais entre valor da NF e valor estimado acima da qual o app alerta' },
-    { chave: 'EMPENHO_UNIDADE_DESTINO', valor: '', descricao: 'Unidade destinatária do despacho de reforço/anulação de empenho' }
+    { chave: 'EMPENHO_UNIDADE_DESTINO', valor: '', descricao: 'Unidade destinatária do despacho de reforço/anulação de empenho' },
+    { chave: 'EMPENHO_PASTA_PDF_NE', valor: '', descricao: 'Pasta do Drive onde o app guarda os PDFs das NEs importadas (criada pelo app na primeira importação)' }
   ],
   Itens: [
     { item: 1, descricao: 'Subscrição WhatsApp API Oficial (BSP)', unidade: 'Assinatura mensal', tipo: 'FIXO', fonte: '—' },
@@ -143,9 +144,14 @@ function setup() {
       const cabecalho = lerCabecalho_(sh);
       const faltando = CABECALHOS[nome].filter(function (c) { return cabecalho.indexOf(c) < 0; });
       if (faltando.length) {
-        comProblema[nome] = true;
-        resumo.push('ATENÇÃO: a aba ' + nome + ' já existe, mas está sem as colunas ' + faltando.join(', ') +
-          '. Nada foi alterado nela.');
+        // Colunas novas entram no FIM da aba, sem mover nem apagar as existentes.
+        const inicio = cabecalho.length + 1;
+        if (sh.getMaxColumns() < cabecalho.length + faltando.length) {
+          sh.insertColumnsAfter(sh.getMaxColumns(), cabecalho.length + faltando.length - sh.getMaxColumns());
+        }
+        sh.getRange(1, inicio, 1, faltando.length).setValues([faltando]).setFontWeight('bold');
+        logs.push(montarLog_('CONFIG', nome, 'colunas', null, { acrescentadas: faltando.join(', ') }));
+        resumo.push('Aba ' + nome + ': coluna(s) acrescentada(s) no fim: ' + faltando.join(', ') + '.');
       } else {
         resumo.push('Aba já existia: ' + nome);
       }

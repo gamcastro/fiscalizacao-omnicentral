@@ -28,7 +28,10 @@ const PARAMETROS_EMPENHO = [
     dica: 'Informada pelo setor de orçamento. Vale para o exercício aberto por padrão.' },
   { chave: 'EMPENHO_AVISO_DIAS', rotulo: 'Dias de antecedência do aviso de prazo', tipo: 'inteiro' },
   { chave: 'EMPENHO_TOLERANCIA_NF', rotulo: 'Tolerância NF × valor estimado (R$)', tipo: 'reais', dica: 'ex.: 1,00' },
-  { chave: 'EMPENHO_UNIDADE_DESTINO', rotulo: 'Unidade destinatária do despacho de reforço/anulação', tipo: 'texto', opcional: true }
+  { chave: 'EMPENHO_UNIDADE_DESTINO', rotulo: 'Unidade destinatária do despacho de reforço/anulação', tipo: 'texto', opcional: true },
+  { chave: 'EMPENHO_PASTA_PDF_NE', rotulo: 'Pasta do Drive dos PDFs das NEs', tipo: 'pasta', opcional: true,
+    dica: 'Vazio: o app cria a pasta na primeira importação e grava o link aqui. Pode mover e compartilhar a pasta à vontade. ' +
+      'Uma pasta criada por outra pessoa não funciona (o app só grava em pasta criada por ele).' }
 ];
 
 /** Perfis do módulo (o SUPERADMIN sempre passa em requirePerfil_). Função, e não constante, por causa da ordem dos arquivos. */
@@ -81,6 +84,10 @@ function abasEmpenhoExistem_() {
 function exigirAbasEmpenho_() {
   if (!abasEmpenhoExistem_()) {
     throw new Error('As abas do módulo de empenho ainda não existem. Peça ao superadmin para rodar setup().');
+  }
+  const cabecalho = lerCabecalho_(planilha_().getSheetByName(ABAS.EMPENHOS));
+  if (cabecalho.indexOf('linkPdf') < 0) {
+    throw new Error('A aba Empenhos ainda não tem a coluna linkPdf. Peça ao superadmin para rodar setup() de novo.');
   }
 }
 
@@ -146,6 +153,7 @@ function lerEmpenhos_() {
       valorInicial: numeroPlanilha_(e.valorInicial) || 0,
       idSei: String(e.idSei || '').trim(),
       obs: String(e.obs || ''),
+      linkPdf: String(e.linkPdf || '').trim(),
       ativo: ehVerdadeiro_(e.ativo),
       _linha: e._linha
     };
@@ -773,7 +781,8 @@ function salvarEmpenho(dados) {
     dataEmissao: dataDeIso_(dataEmissao),
     valorInicial: lerValorReais_(dados.valorInicial, 'Valor inicial', true, false),
     idSei: lerIdSeiEmpenho_(dados.idSei),
-    obs: textoLivre_(dados.obs, 500)
+    obs: textoLivre_(dados.obs, 500),
+    linkPdf: lerLinkPdf_(dados.linkPdf)
   };
 
   return comLock_(function () {
@@ -894,6 +903,8 @@ function importarNe(dados) {
   const arquivo = textoLivre_(dados.arquivo, 200);
   const obs = textoLivre_('Importado do PDF do SIAFI' + (arquivo ? ' (' + arquivo + ')' : '') + '.', 500);
   const idSeiNe = lerIdSeiEmpenho_(dados.idSei);
+  // Guarda o PDF fora do lock (pode demorar); o link vai para a NE dentro do lock.
+  const linkPdf = dados.guardarPdf === true && dados.base64 ? guardarPdfNe_(arquivo || (id + '.pdf'), dados.base64) : '';
 
   return comLock_(function () {
     const agora = new Date();
@@ -905,7 +916,7 @@ function importarNe(dados) {
     if (!ne) {
       const registro = Object.assign({
         id: id, exercicio: exercicio, dataEmissao: dataDeIso_(dataEmissao), valorInicial: lido.valorInicial,
-        idSei: idSeiNe, obs: obs
+        idSei: idSeiNe, obs: obs, linkPdf: linkPdf
       }, carimbo);
       incluir_(ABAS.EMPENHOS, [registro]);
       gravarLog_('CRIAR', ABAS.EMPENHOS, id, null, registro);
@@ -934,10 +945,20 @@ function importarNe(dados) {
       incluidos++;
     });
 
+    // NE já cadastrada: o link passa para o PDF importado agora (versão mais nova), com Log.
+    let linkAtualizado = false;
+    if (!neCriada && linkPdf && ne.linkPdf !== linkPdf) {
+      const linhaNe = listar_(ABAS.EMPENHOS).find(function (l) { return l._linha === ne._linha; });
+      atualizar_(ABAS.EMPENHOS, ne._linha, { linkPdf: linkPdf, atualizadoEm: agora, atualizadoPor: usuario.email });
+      gravarLog_('EDITAR', ABAS.EMPENHOS, id, { linkPdf: linhaNe ? linhaNe.linkPdf : '' }, { linkPdf: linkPdf });
+      linkAtualizado = true;
+    }
+
     const partes = [];
     if (neCriada) partes.push('NE ' + id + ' incluída');
     if (incluidos) partes.push(incluidos + (incluidos === 1 ? ' movimento incluído' : ' movimentos incluídos') + (neCriada ? '' : ' na NE ' + id));
-    const mensagem = partes.length ? partes.join(' com ') + '.' : 'Nada novo para incluir na NE ' + id + ': tudo o que está no PDF já estava cadastrado.';
+    let mensagem = partes.length ? partes.join(' com ') + '.' : 'Nada novo para incluir na NE ' + id + ': tudo o que está no PDF já estava cadastrado.';
+    if (linkPdf) mensagem += linkAtualizado || neCriada ? ' PDF guardado na pasta do Drive e ligado à NE.' : ' O PDF já estava guardado e ligado à NE.';
     const r = resultadoEmpenho_(mensagem, exercicio, [id]);
     r.avisos = comparacao.avisos.concat(r.avisos);
     return r;
@@ -1537,6 +1558,8 @@ function validarParametroEmpenho_(def, valor) {
       if (!texto) throw new Error('Preencha ' + rotulo + '.');
       if (texto.length > 200) throw new Error(rotulo + ' deve ter no máximo 200 caracteres.');
       return texto;
+    case 'pasta':
+      return 'https://drive.google.com/drive/folders/' + idPastaDoLink_(texto);
   }
   throw new Error('Tipo de parâmetro sem validação: ' + def.tipo + '.');
 }
@@ -1639,6 +1662,65 @@ function lerIdSeiEmpenho_(valor) {
   const s = String(valor || '').trim();
   if (s && !/^\d{1,12}$/.test(s)) throw new Error('O ID do SEI deve ter só números.');
   return s;
+}
+
+/** Link do PDF da NE (Drive, SEI ou outro endereço https). Vazio é aceito. */
+function lerLinkPdf_(valor) {
+  const s = String(valor || '').trim();
+  if (!s) return '';
+  if (!/^https:\/\/\S+$/i.test(s)) throw new Error('O link do PDF deve ser um endereço que começa com https://.');
+  if (s.length > 500) throw new Error('O link do PDF passa de 500 caracteres.');
+  return s;
+}
+
+/**
+ * Guarda o PDF da NE na pasta do parâmetro EMPENHO_PASTA_PDF_NE e devolve o link do arquivo.
+ * Sem pasta configurada, cria uma (no Drive de quem implantou o app) e grava o link no parâmetro.
+ * Se já existir na pasta um arquivo com o mesmo nome (mesma versão do SIAFI), reaproveita.
+ * O app só tem o escopo drive.file: consegue gravar apenas em pasta criada por ele.
+ */
+function guardarPdfNe_(arquivo, base64) {
+  // Serviço avançado do Drive (v3): funciona com o escopo drive.file, que o app já tem.
+  // (DriveApp exigiria o escopo amplo do Drive e uma nova autorização.)
+  const config = lerConfig_();
+  let link = String(config.EMPENHO_PASTA_PDF_NE || '').trim();
+  let idPasta;
+  if (link) {
+    idPasta = idPastaDoLink_(link);
+    try {
+      Drive.Files.get(idPasta, { fields: 'id', supportsAllDrives: true });
+    } catch (e) {
+      throw new Error('Não consegui abrir a pasta dos PDFs das NEs (' + link + '). Confira o parâmetro ou deixe-o vazio para o app criar outra.');
+    }
+  } else {
+    const ambiente = ehHomologacao_() ? ' [HOMOLOGAÇÃO]' : '';
+    idPasta = Drive.Files.create({
+      name: 'Fiscalização Omnicentral – PDFs das notas de empenho' + ambiente,
+      mimeType: 'application/vnd.google-apps.folder'
+    }).id;
+    link = 'https://drive.google.com/drive/folders/' + idPasta;
+    comLock_(function () {
+      const linha = listar_(ABAS.CONFIG).find(function (c) { return String(c.chave).trim() === 'EMPENHO_PASTA_PDF_NE'; });
+      if (linha) atualizar_(ABAS.CONFIG, linha._linha, { valor: link });
+      else incluir_(ABAS.CONFIG, [{ chave: 'EMPENHO_PASTA_PDF_NE', valor: link, descricao: '' }]);
+      gravarLog_('CONFIG', ABAS.CONFIG, 'EMPENHO_PASTA_PDF_NE', linha ? { valor: linha.valor } : null, { valor: link });
+    });
+  }
+  const linkArquivo = function (id) { return 'https://drive.google.com/file/d/' + id + '/view'; };
+  const existentes = Drive.Files.list({
+    q: "'" + idPasta + "' in parents and name = '" + arquivo.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "' and trashed = false",
+    fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+  }).files || [];
+  if (existentes.length) return linkArquivo(existentes[0].id);
+  try {
+    const bytes = Utilities.base64Decode(String(base64 || ''));
+    const criado = Drive.Files.create({ name: arquivo, parents: [idPasta], mimeType: MimeType.PDF },
+      Utilities.newBlob(bytes, MimeType.PDF, arquivo), { supportsAllDrives: true });
+    return linkArquivo(criado.id);
+  } catch (e) {
+    throw new Error('Não consegui gravar o PDF na pasta ' + link + '. O app só grava em pasta criada por ele: ' +
+      'deixe o parâmetro "Pasta do Drive dos PDFs das NEs" vazio para o app criar outra. Detalhe: ' + e.message);
+  }
 }
 
 function textoLivre_(valor, max) {

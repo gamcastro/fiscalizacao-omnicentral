@@ -191,7 +191,7 @@ Linhas iniciais:
 - O modelo serve para qualquer item, mas na v atual só o item 5 usa fontes múltiplas.
 
 ### 3.13 `Empenhos` (uma linha por nota de empenho; módulo de empenho)
-`id` (número da NE, ex.: 2026NE000333) · `exercicio` (AAAA) · `dataEmissao` · `valorInicial` · `idSei` (documento da NE no SEI, opcional) · `obs` · `ativo` (TRUE/FALSE) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
+`id` (número da NE, ex.: 2026NE000333) · `exercicio` (AAAA) · `dataEmissao` · `valorInicial` · `idSei` (documento da NE no SEI, opcional) · `obs` · `ativo` (TRUE/FALSE) · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor` · `linkPdf` (link do PDF da NE, opcional; acrescentado em 18/11/2026 no fim da aba pelo `setup()`)
 
 - O contrato pode ter várias NEs no mesmo exercício (hoje 2026NE000333 e 2026NE000334), **sem regra de divisão** entre elas: cada pagamento indica de qual NE saiu.
 - Sem carga inicial: os usuários lançam pela tela quando o módulo estiver pronto.
@@ -380,6 +380,7 @@ Os números seguem o padrão brasileiro (33.317). As datas usam dd/mm/aaaa, do p
    - implementada na v0.11.0 (entregue junto com a v0.10.0).
    - acréscimo de 18/11/2026: importação da NE pelo PDF do SIAFI ("Impressão Completa"). O app lê número, data de emissão e operações dos itens; valor inicial = soma das "Inclusão" e cada "Reforço"/"Anulação" vira um movimento (somado por dia). Prévia antes de gravar, ID SEI informado à mão, favorecido conferido pelo CNPJ da `Config`, PDF não guardado. Na reimportação só entra o que é novo; divergência com o que já está cadastrado só gera aviso. Entra na mesma v0.11.0.
    - acréscimo de 18/11/2026: importação do pagamento pela NFS-e e pela OB do SIAFI. O app preenche o formulário de pagamento (o fiscal confere e salva); valor da NF e valor pago = valor total (bruto) da NF, porque as retenções também saem da NE; a OB confirma o pagamento, a data e a NE. Só a NF → a pagar; só a OB de NF já lançada → edição daquele pagamento. Divergências só geram aviso. Entra na mesma v0.11.0.
+   - acréscimo de 18/11/2026: link do PDF de cada NE (coluna `linkPdf` em `Empenhos`). Preenchido à mão no "Editar" da NE ou automaticamente na importação: o app guarda o PDF na pasta do parâmetro `EMPENHO_PASTA_PDF_NE` (criada pelo app na primeira importação, pois o escopo `drive.file` só permite gravar em pasta criada por ele; pode ser movida e compartilhada) e liga o link à NE; na versão nova do PDF, o link passa para o arquivo novo. O card "Empenhado líquido" lista cada NE ativa com o link do PDF e o valor líquido. Entra na mesma v0.11.0.
 
 Em cada fase: plano → aprovação → código → `clasp push` → roteiro de teste.
 
