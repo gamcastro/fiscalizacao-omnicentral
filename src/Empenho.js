@@ -996,9 +996,11 @@ function interpretarTextoNe_(texto, nomeArquivo, cnpj) {
     throw new Error('A data de emissão (' + mEmissao[1] + '/' + mEmissao[2] + '/' + mEmissao[3] + ') não é do ano da NE ' + id + '.');
   }
 
-  // Operações dos itens: "21/05/2026 Inclusão 1,00000 3.147,4200 3.147,42".
-  const reOp = new RegExp('(\\d{2})/(\\d{2})/(\\d{4})\\s+(Inclus[aã]o|Refor[cç]o|Anula[cç][aã]o)(?:\\s+(?:Parcial|Total))?\\s+' +
-    '-?[\\d.]+,\\d+\\s+-?[\\d.]+,\\d+\\s+(' + dinheiro + ')', 'gi');
+  // Operações dos itens: "21/05/2026 Inclusão 1,00000 3.147,4200 3.147,42". A quantidade às vezes vem
+  // quebrada em linhas ("900.000,000 / 00"): pega a sequência de números e usa o último valor em reais.
+  const reOp = new RegExp('(\\d{2})/(\\d{2})/(\\d{4})\\s+(Inclus[aã]o|Refor[cç]o|Anula[cç][aã]o)(?:\\s+(?:Parcial|Total))?' +
+    '((?:\\s+-?[\\d.,]+(?![\\d.,/]))+)', 'gi');
+  const reDinheiro = new RegExp('^' + dinheiro + '$');
   let valorInicial = 0;
   const porDia = {};
   const ordem = [];
@@ -1008,7 +1010,10 @@ function interpretarTextoNe_(texto, nomeArquivo, cnpj) {
     operacoes++;
     const data = m[3] + '-' + m[2] + '-' + m[1];
     const nomeOp = m[4].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const valor = reaisDoPdf_(m[5]);
+    const tokens = m[5].trim().split(/\s+/);
+    const emReais = tokens.filter(function (x) { return reDinheiro.test(x); });
+    if (tokens.length < 2 || !emReais.length) continue;
+    const valor = reaisDoPdf_(emReais[emReais.length - 1]);
     if (nomeOp === 'inclusao') {
       valorInicial = arred2_(valorInicial + valor);
       continue;
