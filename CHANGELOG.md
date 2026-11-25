@@ -3,6 +3,13 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
+## [0.12.0] – em homologação – Preços com "a partir de" (reequilíbrio)
+
+### Incluído
+- Coluna `aPartirDe` (AAAA-MM) no fim da aba `PrecosReferencia`: cada vigência pode ter vários conjuntos de preços, e cada mês usa o conjunto em vigor naquela competência (vazio = desde o início da vigência). Rodar `setup()` de novo para criar a coluna.
+- Configurações → Preços de referência deixa de ser só consulta: "Novo conjunto de preços" (vigência, mês a partir do qual vale, documento e valor de cada item, já preenchidos com o conjunto anterior) e "Editar" de cada conjunto, inclusive o mês "a partir de". Só `SUPERADMIN`; toda alteração vai para o Log e nada é excluído.
+- Acompanhamento do Empenho: valor estimado, comparação NF × estimado e projeção até dezembro usam o preço em vigor em cada mês. Passar o mouse no valor estimado mostra o documento dos preços usados. O despacho de reforço/anulação cita todos os documentos de preço usados no exercício.
+
 ## [0.11.0] – 17/11/2026 – Fase 7: Acompanhamento do Empenho
 
 Entrega única com a v0.10.0 (montagem dos relatórios e guia rápido), que não chegou a ir sozinha para a produção.

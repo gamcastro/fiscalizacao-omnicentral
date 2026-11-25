@@ -106,13 +106,16 @@ function lerDadosEmpenho_(exercicio, config) {
     return { id: String(v.id).trim(), inicio: dataIso_(v.inicio), fim: dataIso_(v.fim) };
   }).filter(function (v) { return v.inicio && v.fim; });
 
+  // Preços por vigência, cada linha com a competência a partir da qual vale ('' = desde o início da vigência).
   const precos = {};
-  const documentosPrecos = {};
   listar_(ABAS.PRECOS).forEach(function (p) {
     const vig = String(p.vigencia).trim();
-    precos[vig] = precos[vig] || {};
-    precos[vig][Number(p.item)] = numeroPlanilha_(p.valorUnitario) || 0;
-    if (String(p.documento || '').trim()) documentosPrecos[vig] = String(p.documento).trim();
+    (precos[vig] = precos[vig] || []).push({
+      item: Number(p.item),
+      valor: numeroPlanilha_(p.valorUnitario) || 0,
+      documento: String(p.documento || '').trim(),
+      aPartirDe: textoAPartirDe_(p.aPartirDe)
+    });
   });
 
   const competencias = {};
@@ -134,7 +137,6 @@ function lerDadosEmpenho_(exercicio, config) {
     itens: listarItens_().map(function (i) { return { item: i.item, tipo: i.tipo, descricao: i.descricao }; }),
     vigencias: vigencias,
     precos: precos,
-    documentosPrecos: documentosPrecos,
     competencias: competencias,
     medicoes: medicoes,
     empenhos: lerEmpenhos_(),
@@ -337,6 +339,33 @@ function vigenciaDoMes_(comp, vigencias) {
   return vigencias.find(function (v) { return v.inicio <= inicio && v.fim >= fim; }) || null;
 }
 
+/** Competência 'AAAA-MM' da coluna aPartirDe ('' quando vazia: vale desde o início da vigência). */
+function textoAPartirDe_(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  return textoCompetencia_(v);
+}
+
+/**
+ * Preços em vigor numa competência: para cada item, a linha da vigência com o maior
+ * "a partir de" que não passe da competência. Devolve { valores: { item: preço }, documentos: [...] }.
+ */
+function precosDoMes_(linhasVig, comp) {
+  const escolhidas = {};
+  (linhasVig || []).forEach(function (p) {
+    if (p.aPartirDe && p.aPartirDe > comp) return;
+    const atual = escolhidas[p.item];
+    if (!atual || p.aPartirDe > atual.aPartirDe) escolhidas[p.item] = p;
+  });
+  const valores = {};
+  const documentos = [];
+  Object.keys(escolhidas).forEach(function (item) {
+    const p = escolhidas[item];
+    valores[item] = p.valor;
+    if (p.documento && documentos.indexOf(p.documento) < 0) documentos.push(p.documento);
+  });
+  return { valores: valores, documentos: documentos };
+}
+
 /** Valor do mês = soma, por item, de quantidade × preço, arredondado a 2 casas por item. */
 function valorDoMes_(quantidades, precosVig, itens) {
   return arred2_(itens.reduce(function (s, it) {
@@ -347,7 +376,7 @@ function valorDoMes_(quantidades, precosVig, itens) {
 }
 
 /**
- * d: { exercicio, mesAtual, margem, tolerancia, itens, vigencias, precos, documentosPrecos,
+ * d: { exercicio, mesAtual, margem, tolerancia, itens, vigencias, precos ({ vigencia: [linhas] }),
  *      competencias, medicoes, empenhos, movimentos, pagamentos, previsoes }
  */
 function calcularEmpenho_(d) {
@@ -445,7 +474,8 @@ function calcularEmpenho_(d) {
     const comp = ano + '-' + ('0' + m).slice(-2);
     const vig = vigenciaDoMes_(comp, d.vigencias);
     if (!vig) continue;
-    const precosVig = d.precos[vig.id] || {};
+    const precosMes = precosDoMes_(d.precos[vig.id], comp);
+    const precosVig = precosMes.valores;
     d.itens.forEach(function (it) {
       if (!(it.item in precosVig)) semPreco[vig.id + ': item ' + it.item] = true;
     });
@@ -474,6 +504,7 @@ function calcularEmpenho_(d) {
       semDados: situacao === 'FUTURA' && comp < d.mesAtual,
       quantidades: lancada ? { 2: valorOuNulo_(quantidades[2]), 4: valorOuNulo_(quantidades[4]), 5: valorOuNulo_(quantidades[5]) } : null,
       estimado: lancada ? valorDoMes_(quantidades, precosVig, d.itens) : null,
+      documentosPreco: precosMes.documentos,
       previsto: null,
       valorNF: doMes.length ? somaCampo_(doMes, 'valorNF') : null,
       valorPago: doMes.some(function (p) { return p.situacao === 'PAGO'; })
@@ -577,8 +608,10 @@ function calcularEmpenho_(d) {
     saldo: saldo
   };
 
-  const documentos = meses.map(function (m) { return d.documentosPrecos[m.vigencia]; })
-    .filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+  const documentos = [];
+  meses.forEach(function (m) {
+    m.documentosPreco.forEach(function (doc) { if (documentos.indexOf(doc) < 0) documentos.push(doc); });
+  });
 
   return {
     exercicio: ano,

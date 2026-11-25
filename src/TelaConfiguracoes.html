@@ -105,11 +105,38 @@
 
   <!-- Preços -->
   <div class="cartao cfg-painel" data-painel="precos" hidden>
-    <p class="aviso-bloqueio">Somente consulta. Os preços não são usados em nenhum cálculo, validação, painel ou texto do SEI.</p>
-    <table class="tabela">
-      <thead><tr><th>Vigência</th><th>Item</th><th>Descrição</th><th class="numero">Valor unitário</th><th>Documento</th></tr></thead>
-      <tbody id="cfg-precos"></tbody>
-    </table>
+    <p class="dica">Os preços são usados só no Acompanhamento do Empenho (valor estimado de cada mês e projeção até dezembro).
+      Cada conjunto vale a partir do mês informado até o próximo conjunto da mesma vigência. Reequilíbrio ou reajuste:
+      inclua um novo conjunto a partir do mês da apostila; os meses anteriores continuam com os preços antigos.
+      Toda alteração fica no Log e nada é excluído: um conjunto errado é corrigido pelo Editar.</p>
+    <div class="cabecalho-form">
+      <h2>Conjuntos de preços</h2>
+      <button type="button" id="cfg-prc-novo" class="botao primario">Novo conjunto de preços</button>
+    </div>
+    <div class="rolagem-horizontal">
+      <table class="tabela">
+        <thead id="cfg-precos-cab"></thead>
+        <tbody id="cfg-precos"></tbody>
+      </table>
+    </div>
+
+    <form id="cfg-prc-form" class="bloco-form" autocomplete="off" hidden>
+      <h2 id="cfg-prc-titulo">Novo conjunto de preços</h2>
+      <div class="grade-form">
+        <label>Vigência<select id="cfg-prc-vig"></select></label>
+        <label>A partir de<input type="month" id="cfg-prc-mes"></label>
+        <label class="largo">Documento<input type="text" id="cfg-prc-doc" placeholder="ex.: Apostila nº 2 (SEI 0000000)"></label>
+      </div>
+      <p id="cfg-prc-dica-mes" class="dica"></p>
+      <table class="tabela tabela-itens">
+        <thead><tr><th>Item</th><th>Descrição</th><th>Unidade</th><th>Valor unitário (R$)</th><th class="numero">Anterior</th></tr></thead>
+        <tbody id="cfg-prc-valores"></tbody>
+      </table>
+      <div class="acoes">
+        <button type="submit" class="botao primario">Salvar preços</button>
+        <button type="button" id="cfg-prc-cancelar" class="botao">Cancelar</button>
+      </div>
+    </form>
   </div>
 </section>
 
@@ -117,7 +144,7 @@
   (function () {
     window.TELAS = window.TELAS || {};
     const el = function (id) { return document.getElementById(id); };
-    const estado = { dados: null, emails: [], feriadoEditando: '', vigenciaEditando: null, ano: '' };
+    const estado = { dados: null, emails: [], feriadoEditando: '', vigenciaEditando: null, precosEditando: null, ano: '' };
     const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 
     function dataBr(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
@@ -441,15 +468,98 @@
 
     /* ---------- Preços ---------- */
 
-    function renderizarPrecos() {
-      const desc = {};
-      estado.dados.itens.forEach(function (it) { desc[it.item] = it.descricao; });
-      el('cfg-precos').innerHTML = estado.dados.precos.map(function (p) {
-        return '<tr><td>' + esc(p.vigencia) + '</td><td>' + p.item + '</td><td>' + esc(desc[p.item] || '') + '</td>' +
-          '<td class="numero">' + esc(p.valorUnitario.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 8 })) + '</td>' +
-          '<td>' + esc(p.documento) + '</td></tr>';
-      }).join('') || '<tr><td colspan="5" class="vazio">Nenhum preço cadastrado.</td></tr>';
+    function fmtPreco(n) {
+      return (n === null || n === undefined) ? '' : Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 });
     }
+    function mesBr(comp) { return comp ? comp.slice(5) + '/' + comp.slice(0, 4) : ''; }
+    function rotuloAPartirDe(c) {
+      return c.aPartirDe ? 'a partir de ' + mesBr(c.aPartirDe) : 'desde ' + mesBr((c.inicioVigencia || '').slice(0, 7)) + ' (início)';
+    }
+    function chaveConjunto(c) { return c.vigencia + '|' + c.aPartirDe; }
+
+    function renderizarPrecos() {
+      const conjuntos = estado.dados.precos;
+      el('cfg-precos-cab').innerHTML = '<tr><th>Item</th><th>Descrição</th>' + conjuntos.map(function (c) {
+        return '<th class="numero">' + esc(c.vigencia) + ' · ' + esc(rotuloAPartirDe(c)) +
+          '<span class="dica bloco">' + esc(c.documento || 'sem documento') + '</span>' +
+          '<button type="button" class="botao pequeno" data-editar-precos="' + esc(chaveConjunto(c)) + '">Editar</button></th>';
+      }).join('') + '</tr>';
+      el('cfg-precos').innerHTML = conjuntos.length
+        ? estado.dados.itens.map(function (it) {
+            return '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td>' + conjuntos.map(function (c) {
+              return '<td class="numero">' + esc(fmtPreco(c.valores[it.item])) + '</td>';
+            }).join('') + '</tr>';
+          }).join('')
+        : '<tr><td colspan="2" class="vazio">Nenhum preço cadastrado.</td></tr>';
+      el('cfg-prc-form').hidden = true;
+    }
+
+    /** Conjunto em vigor antes de `comp` na vigência (para pré-preencher e comparar). */
+    function conjuntoAnterior(vigencia, comp, ignorar) {
+      return estado.dados.precos
+        .filter(function (c) { return c.vigencia === vigencia && c !== ignorar && (!comp || c.aPartirDe < comp); })
+        .sort(function (a, b) { return a.aPartirDe < b.aPartirDe ? 1 : -1; })[0] || null;
+    }
+
+    function abrirFormPrecos(c) {
+      estado.precosEditando = c || null;
+      el('cfg-prc-titulo').textContent = c ? 'Editar preços ' + c.vigencia + ' · ' + rotuloAPartirDe(c) : 'Novo conjunto de preços';
+      el('cfg-prc-vig').innerHTML = estado.dados.vigencias.map(function (v) {
+        return '<option value="' + esc(v.id) + '">' + esc(v.id + ' · ' + dataBr(v.inicio) + ' a ' + dataBr(v.fim)) + '</option>';
+      }).join('');
+      const atual = estado.dados.vigencias.find(function (v) { return v.atual; });
+      el('cfg-prc-vig').value = c ? c.vigencia : (atual ? atual.id : (estado.dados.vigencias[0] || {}).id || '');
+      el('cfg-prc-vig').disabled = !!c;
+      el('cfg-prc-mes').value = c ? (c.aPartirDe || (c.inicioVigencia || '').slice(0, 7)) : '';
+      el('cfg-prc-mes').disabled = !!c && !c.aPartirDe;
+      el('cfg-prc-dica-mes').textContent = (c && !c.aPartirDe)
+        ? 'Conjunto inicial da vigência: vale desde o primeiro mês. Para um reequilíbrio, use "Novo conjunto de preços".'
+        : 'Os meses a partir deste usam estes preços no empenho; os anteriores continuam com o conjunto anterior.';
+      const base = c || conjuntoAnterior(el('cfg-prc-vig').value, '', null);
+      el('cfg-prc-doc').value = c ? c.documento : '';
+      preencherValoresPrecos(base);
+      el('cfg-prc-form').hidden = false;
+      el('cfg-prc-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function preencherValoresPrecos(base) {
+      const c = estado.precosEditando;
+      const anterior = c ? conjuntoAnterior(c.vigencia, c.aPartirDe || '0000-00', c) : base;
+      el('cfg-prc-valores').innerHTML = estado.dados.itens.map(function (it) {
+        const v = base ? base.valores[it.item] : '';
+        const ant = anterior ? anterior.valores[it.item] : null;
+        return '<tr><td class="num-item">' + it.item + '</td><td>' + esc(it.descricao) + '</td><td>' + esc(it.unidade) + '</td>' +
+          '<td><input type="text" inputmode="decimal" class="lan-qtd" data-preco-item="' + it.item + '" value="' + esc(fmtPreco(v)) + '"></td>' +
+          '<td class="numero dica">' + esc(fmtPreco(ant)) + '</td></tr>';
+      }).join('');
+    }
+
+    el('cfg-prc-novo').addEventListener('click', function () { abrirFormPrecos(null); });
+    el('cfg-prc-cancelar').addEventListener('click', function () { el('cfg-prc-form').hidden = true; });
+    el('cfg-prc-vig').addEventListener('change', function () {
+      if (!estado.precosEditando) preencherValoresPrecos(conjuntoAnterior(el('cfg-prc-vig').value, '', null));
+    });
+    el('cfg-precos-cab').addEventListener('click', function (ev) {
+      const editar = ev.target.closest('[data-editar-precos]');
+      if (!editar) return;
+      abrirFormPrecos(estado.dados.precos.find(function (c) { return chaveConjunto(c) === editar.dataset.editarPrecos; }));
+    });
+    el('cfg-prc-form').addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      const c = estado.precosEditando;
+      const mes = el('cfg-prc-mes').value;
+      if (!c && !mes) { mostrarMensagem('Informe o mês a partir do qual os novos preços valem.', 'erro'); return; }
+      const valores = {};
+      el('cfg-prc-valores').querySelectorAll('[data-preco-item]').forEach(function (i) { valores[i.dataset.precoItem] = i.value.trim(); });
+      executar('salvarPrecos', {
+        novo: !c,
+        vigencia: el('cfg-prc-vig').value,
+        aPartirDeOriginal: c ? c.aPartirDe : '',
+        aPartirDe: (c && !c.aPartirDe) ? '' : mes,
+        documento: el('cfg-prc-doc').value,
+        valores: valores
+      });
+    });
 
     /* ---------- Abas ---------- */
 

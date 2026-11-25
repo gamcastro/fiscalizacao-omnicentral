@@ -126,17 +126,21 @@ Linha inicial: george.castro@tre-ma.jus.br · George André Melo Castro · SUPER
 | V2026 | 9 | 1 |
 
 ### 3.6 `PrecosReferencia` (consulta na fiscalização técnica; usada em cálculo **somente** no módulo de empenho)
-| vigencia | item | valorUnitario | documento |
-|---|---|---|---|
-| V2026 | 1 | 547,91 | Apostila nº 1 |
-| V2026 | 2 | 54,791 | Apostila nº 1 |
-| V2026 | 3 | 2.410,80 | Apostila nº 1 |
-| V2026 | 4 | 0,23012207 | Apostila nº 1 |
-| V2026 | 5 | 0,10958194 | Apostila nº 1 |
-| V2026 | 6 | 109,58 | Apostila nº 1 |
-| V2026 | 7 | 53,695 | Apostila nº 1 |
-| V2026 | 8 | 5.479,05 | Apostila nº 1 |
-| V2026 | 9 | 1.095,80 | Apostila nº 1 |
+Colunas: `vigencia` · `item` · `valorUnitario` · `documento` · `aPartirDe` (AAAA-MM; vazio = desde o início da vigência; acrescentada na v0.12.0).
+
+Cada vigência pode ter vários **conjuntos de preços** (mesmo `aPartirDe`). Um reequilíbrio ou reajuste é um conjunto novo a partir do mês da apostila: os meses anteriores continuam com o conjunto anterior, e nada é sobrescrito nem excluído. Os conjuntos são incluídos e editados em Configurações → Preços de referência (só `SUPERADMIN`), sempre com Log.
+
+| vigencia | item | valorUnitario | documento | aPartirDe |
+|---|---|---|---|---|
+| V2026 | 1 | 547,91 | Apostila nº 1 | |
+| V2026 | 2 | 54,791 | Apostila nº 1 | |
+| V2026 | 3 | 2.410,80 | Apostila nº 1 | |
+| V2026 | 4 | 0,23012207 | Apostila nº 1 | |
+| V2026 | 5 | 0,10958194 | Apostila nº 1 | |
+| V2026 | 6 | 109,58 | Apostila nº 1 | |
+| V2026 | 7 | 53,695 | Apostila nº 1 | |
+| V2026 | 8 | 5.479,05 | Apostila nº 1 | |
+| V2026 | 9 | 1.095,80 | Apostila nº 1 | |
 
 ### 3.7 `Competencias` (uma linha por mês)
 `competencia` (AAAA-MM) · `vigencia` · `status` · `ansUptimePct` · `ansMinutos` · `ansCumprido` (TRUE/FALSE) · `ansObs` · `idRelConsumo` · `idRelANS` · `idAtesto` · `idDespacho` · `dataEnvioCogecon` · `pastaDrive` (URL) · `cienteGestorPor` · `cienteGestorEm` (sem uso desde a v0.4.1) · `obs` · `criadoEm` · `criadoPor` · `atualizadoEm` · `atualizadoPor`
@@ -237,7 +241,7 @@ Linhas iniciais:
    - **trava de conferência:** ao passar de `RASCUNHO` para `EM_CONFERENCIA` com uma única fonte (ou nenhuma), o app exige marcar "Confirmo que verifiquei todos os relatórios de mensagens ativas/template do período em Relatórios Premium". A confirmação vai para o Log.
 9. **Acompanhamento do empenho (só no módulo de empenho):**
    - **Competências do exercício:** os meses de janeiro a dezembro do exercício que estejam dentro de uma vigência cadastrada (em 2026: julho a dezembro). A competência de dezembro é paga em janeiro, mas conta no exercício em que foi prestada.
-   - **Valor estimado da competência** = soma, por item, de quantidade × `valorUnitario` da `PrecosReferencia` da vigência daquela competência, arredondado a 2 casas por item. Se o exercício tiver duas vigências (ex.: 2027), cada mês usa o preço da sua vigência.
+   - **Valor estimado da competência** = soma, por item, de quantidade × `valorUnitario` da `PrecosReferencia` da vigência daquela competência, arredondado a 2 casas por item. Se o exercício tiver duas vigências (ex.: 2027), cada mês usa o preço da sua vigência. Dentro da vigência, cada item usa o conjunto com o maior `aPartirDe` que não passe da competência (vazio = início da vigência). A projeção dos meses futuros usa a mesma regra.
    - **Empenhado líquido** = soma dos `valorInicial` das NEs ativas do exercício + reforços − anulações.
    - **Pago** = soma de `valorPago` dos pagamentos PAGO do exercício. **A pagar** = soma de `valorNF` dos pagamentos A_PAGAR.
    - **Comprometido estimado** = valor estimado das competências do exercício com medição lançada e sem pagamento registrado.

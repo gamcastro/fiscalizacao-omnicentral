@@ -3,7 +3,7 @@
   <div class="cabecalho-tela">
     <div>
       <h1>Acompanhamento do Empenho</h1>
-      <span class="dica">Valor estimado = quantidade medida × preço de referência. O pedido de reforço ou anulação continua pelo SEI.</span>
+      <span class="dica">Valor estimado = quantidade medida × preço de referência em vigor no mês (passe o mouse para ver o documento). O pedido de reforço ou anulação continua pelo SEI.</span>
     </div>
     <div class="acoes">
       <label class="filtro">Exercício <select id="emp-exercicio"></select></label>
@@ -354,7 +354,7 @@
           '<td><strong>' + esc(rotuloComp(m.competencia)) + '</strong></td>' +
           '<td>' + situacao + '</td>' +
           '<td class="numero">' + qtd(q[2]) + '</td><td class="numero">' + qtd(q[4]) + '</td><td class="numero">' + qtd(q[5]) + '</td>' +
-          '<td class="numero">' + estimado + '</td>' +
+          '<td class="numero"' + ((m.documentosPreco || []).length ? ' title="Preços: ' + esc(m.documentosPreco.join(', ')) + '"' : '') + '>' + estimado + '</td>' +
           '<td class="numero">' + esc(reais(m.valorNF)) + '</td>' +
           '<td class="numero">' + esc(reais(m.valorPago)) + '</td>' +
           '<td>' + esc(m.nes.join(', ')) + '</td>' +

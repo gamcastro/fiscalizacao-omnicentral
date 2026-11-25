@@ -1,6 +1,7 @@
 /**
  * Configuracoes.js – tela "Configurações" (somente SUPERADMIN): parâmetros da aba Config,
- * feriados, vigências e quantidades contratadas, lembrete por e-mail e consulta aos preços.
+ * feriados, vigências e quantidades contratadas, lembrete por e-mail e preços de referência
+ * (cada conjunto de preços vale a partir de uma competência; usados só no Acompanhamento do Empenho).
  * Feriados e vigências são configuração: podem ser excluídos, sempre com registro no Log.
  * Competências e medições continuam sem exclusão.
  */
@@ -52,9 +53,7 @@ function montarConfiguracoes_() {
       .map(function (f) { return { data: dataIso_(f.data), descricao: String(f.descricao || '') }; })
       .filter(function (f) { return f.data; })
       .sort(function (a, b) { return a.data < b.data ? -1 : 1; }),
-    precos: listar_(ABAS.PRECOS).map(function (p) {
-      return { vigencia: String(p.vigencia), item: Number(p.item), valorUnitario: Number(p.valorUnitario), documento: String(p.documento || '') };
-    }),
+    precos: listarConjuntosPrecos_(vigencias),
     lembrete: {
       ativo: ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === HANDLER_LEMBRETE; }),
       homologacao: ehHomologacao_()
@@ -354,6 +353,126 @@ function excluirVigencia(id) {
     incluir_(ABAS.LOG, logs);
     return resultadoConfig_('Vigência ' + alvo + ' excluída.');
   });
+}
+
+/* ---------- Preços de referência ---------- */
+
+/**
+ * Agrupa a aba PrecosReferencia em conjuntos (vigência + "a partir de"), do mais novo para o mais antigo.
+ * aPartirDe '' = vale desde o início da vigência.
+ */
+function listarConjuntosPrecos_(vigencias) {
+  const inicioVig = {};
+  (vigencias || listarVigenciasConfig_()).forEach(function (v) { inicioVig[v.id] = v.inicio; });
+  const conjuntos = {};
+  listar_(ABAS.PRECOS).forEach(function (p) {
+    const vigencia = String(p.vigencia).trim();
+    const aPartirDe = textoAPartirDe_(p.aPartirDe);
+    const chave = vigencia + '|' + aPartirDe;
+    const c = conjuntos[chave] = conjuntos[chave] || { vigencia: vigencia, aPartirDe: aPartirDe, documento: '', valores: {} };
+    c.valores[Number(p.item)] = numeroPlanilha_(p.valorUnitario);
+    if (!c.documento && String(p.documento || '').trim()) c.documento = String(p.documento).trim();
+  });
+  return Object.keys(conjuntos).map(function (k) {
+    const c = conjuntos[k];
+    c.inicioVigencia = inicioVig[c.vigencia] || '';
+    return c;
+  }).sort(function (a, b) {
+    if (a.inicioVigencia !== b.inicioVigencia) return a.inicioVigencia < b.inicioVigencia ? 1 : -1;
+    return a.aPartirDe < b.aPartirDe ? 1 : a.aPartirDe > b.aPartirDe ? -1 : 0;
+  });
+}
+
+/**
+ * Inclui ou edita um conjunto de preços (todos os itens de uma vigência, a partir de uma competência).
+ * dados: { novo, vigencia, aPartirDeOriginal, aPartirDe ('AAAA-MM' ou '' = início da vigência), documento,
+ *          valores: { item: '0,23012207' } }
+ * Nada é excluído: um conjunto errado é corrigido editando a competência, o documento ou os valores.
+ */
+function salvarPrecos(dados) {
+  requirePerfil_([PERFIS.SUPERADMIN]);
+  if (!dados || typeof dados !== 'object') throw new Error('Dados dos preços não informados.');
+  const vigId = String(dados.vigencia || '').trim();
+  const documento = String(dados.documento || '').trim();
+  if (!documento) throw new Error('Informe o documento dos preços (ex.: Apostila nº 2 (SEI 0000000)).');
+  if (documento.length > 200) throw new Error('O documento deve ter no máximo 200 caracteres.');
+  let aPartirDe = String(dados.aPartirDe || '').trim();
+  if (aPartirDe && !/^\d{4}-(0[1-9]|1[0-2])$/.test(aPartirDe)) throw new Error('Informe o mês "a partir de" no formato mm/aaaa.');
+
+  const itens = listarItens_();
+  const erros = [];
+  const valores = {};
+  itens.forEach(function (it) {
+    const v = lerValorUnitario_((dados.valores || {})[it.item]);
+    if (v === null) erros.push('Informe o valor unitário do item ' + it.item + ' (0 se não houver).');
+    else if (v === undefined) erros.push('Valor unitário do item ' + it.item + ' inválido: use até 8 casas decimais (ex.: 0,23012207).');
+    else valores[it.item] = v;
+  });
+  if (erros.length) throw new Error(erros.join('\n'));
+
+  return comLock_(function () {
+    const vig = listar_(ABAS.VIGENCIAS).find(function (v) { return String(v.id).trim() === vigId; });
+    if (!vig) throw new Error('Escolha uma vigência cadastrada.');
+    const compInicio = dataIso_(vig.inicio).slice(0, 7);
+    const compFim = dataIso_(vig.fim).slice(0, 7);
+    if (aPartirDe && (aPartirDe < compInicio || aPartirDe > compFim)) {
+      throw new Error('O mês "a partir de" deve estar dentro da vigência ' + vigId + ' (' + rotuloCompetencia_(compInicio) +
+        ' a ' + rotuloCompetencia_(compFim) + ').');
+    }
+    if (aPartirDe === compInicio) aPartirDe = ''; // o primeiro mês da vigência é o próprio início
+
+    const daVigencia = listar_(ABAS.PRECOS).filter(function (p) { return String(p.vigencia).trim() === vigId; });
+    const doConjunto = function (comp) {
+      return daVigencia.filter(function (p) { return textoAPartirDe_(p.aPartirDe) === comp; });
+    };
+    const novo = dados.novo === true;
+    const original = novo ? null : String(dados.aPartirDeOriginal || '').trim();
+    const atuais = novo ? [] : doConjunto(original);
+    if (!novo && !atuais.length) throw new Error('Conjunto de preços não encontrado. Atualize a tela.');
+    if ((novo || aPartirDe !== original) && doConjunto(aPartirDe).length) {
+      throw new Error('A vigência ' + vigId + ' já tem preços ' + rotuloAPartirDe_(aPartirDe) + '. Edite esse conjunto.');
+    }
+
+    const logs = [];
+    const novas = [];
+    itens.forEach(function (it) {
+      const registro = { valorUnitario: valores[it.item], documento: documento, aPartirDe: aPartirDe };
+      const atual = atuais.find(function (p) { return Number(p.item) === it.item; });
+      const chave = vigId + '/' + (aPartirDe || 'inicio') + '/' + it.item;
+      if (!atual) {
+        const linha = Object.assign({ vigencia: vigId, item: it.item }, registro);
+        novas.push(linha);
+        logs.push(montarLog_('CRIAR', ABAS.PRECOS, chave, null, linha));
+        return;
+      }
+      const comparavel = Object.assign({}, atual, { aPartirDe: textoAPartirDe_(atual.aPartirDe) });
+      const mudancas = diferencas_(comparavel, registro);
+      if (!Object.keys(mudancas).length) return;
+      atualizar_(ABAS.PRECOS, atual._linha, mudancas);
+      logs.push(montarLog_('EDITAR', ABAS.PRECOS, chave, selecionar_(comparavel, Object.keys(mudancas)), mudancas));
+    });
+    incluir_(ABAS.PRECOS, novas);
+    incluir_(ABAS.LOG, logs);
+
+    const descricao = 'Preços da vigência ' + vigId + ' ' + rotuloAPartirDe_(aPartirDe);
+    if (!logs.length) return resultadoConfig_('Nenhuma alteração nos ' + descricao.charAt(0).toLowerCase() + descricao.slice(1) + '.');
+    return resultadoConfig_(descricao + (novo ? ' incluídos.' : ' atualizados.') +
+      ' O Acompanhamento do Empenho já usa estes valores nos meses em que eles valem.');
+  });
+}
+
+function rotuloAPartirDe_(aPartirDe) {
+  return aPartirDe ? 'a partir de ' + rotuloCompetencia_(aPartirDe) : 'desde o início da vigência';
+}
+
+/** Valor unitário digitado ('0,23012207', '1.095,80', 'R$ 547,91'): número, null se vazio, undefined se inválido. */
+function lerValorUnitario_(valor) {
+  if (typeof valor === 'number') return (isFinite(valor) && valor >= 0) ? valor : undefined;
+  let s = String(valor === undefined || valor === null ? '' : valor).replace(/R\$/i, '').replace(/\s/g, '');
+  if (!s) return null;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  if (!/^\d+(\.\d{1,8})?$/.test(s)) return undefined;
+  return Number(s);
 }
 
 /* ---------- Auxiliares ---------- */

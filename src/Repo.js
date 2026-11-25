@@ -32,7 +32,7 @@ const CABECALHOS = {
   Itens: ['item', 'descricao', 'unidade', 'tipo', 'fonte'],
   Vigencias: ['id', 'inicio', 'fim', 'documento', 'observacao'],
   QuantidadesContratadas: ['vigencia', 'item', 'qtdContratada'],
-  PrecosReferencia: ['vigencia', 'item', 'valorUnitario', 'documento'],
+  PrecosReferencia: ['vigencia', 'item', 'valorUnitario', 'documento', 'aPartirDe'],
   Competencias: ['competencia', 'vigencia', 'status', 'ansUptimePct', 'ansMinutos', 'ansCumprido', 'ansObs',
     'idRelConsumo', 'idRelANS', 'idAtesto', 'idDespacho', 'dataEnvioCogecon', 'pastaDrive',
     'cienteGestorPor', 'cienteGestorEm', 'obs', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'],
