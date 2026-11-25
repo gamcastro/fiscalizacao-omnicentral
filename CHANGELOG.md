@@ -3,7 +3,7 @@
 O sistema segue o [Versionamento Semântico](https://semver.org/lang/pt-BR/): `MAIOR.MENOR.CORREÇÃO`.
 Enquanto as fases do `docs/SPEC.md` estiverem em construção, a versão fica em `0.x`: cada fase concluída sobe a versão MENOR e cada correção sobe a CORREÇÃO. A `1.0.0` marca o sistema completo em produção.
 
-## [0.12.0] – em homologação – Preços com "a partir de" (reequilíbrio)
+## [0.12.0] – 25/11/2026 – Preços com "a partir de" (reequilíbrio)
 
 ### Incluído
 - Coluna `aPartirDe` (AAAA-MM) no fim da aba `PrecosReferencia`: cada vigência pode ter vários conjuntos de preços, e cada mês usa o conjunto em vigor naquela competência (vazio = desde o início da vigência). Rodar `setup()` de novo para criar a coluna.
